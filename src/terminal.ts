@@ -13,12 +13,24 @@ export const DEFAULT_NAME = "xterm";
 /* ---------- FFI bindings ---------- */
 
 const base = Bun.fileURLToPath(new URL("..", import.meta.url));
+
+// Check for architecture-specific libraries first, then fall back to generic ones
+const findLibrary = (baseName: string, archNames: string[]): string => {
+  for (const name of archNames) {
+    const path = `${base}/rust-pty/target/release/${name}`;
+    if (Bun.file(path).size > 0) {
+      return path;
+    }
+  }
+  return `${base}/rust-pty/target/release/${baseName}`;
+};
+
 const libPath =
   process.platform === "darwin"
-    ? `${base}/rust-pty/target/release/librust_pty.dylib`
+    ? findLibrary("librust_pty.dylib", ["librust_pty_arm64.dylib", "librust_pty_x86_64.dylib"])
     : process.platform === "linux"
-    ? `${base}/rust-pty/target/release/librust_pty.so`
-    : `${base}/rust-pty/target/release/rust_pty.dll`;
+    ? findLibrary("librust_pty.so", ["librust_pty_x86_64.so", "librust_pty_aarch64.so"])
+    : findLibrary("rust_pty.dll", ["rust_pty.dll"]);
 
 const lib = dlopen(libPath, {
   bun_pty_spawn:  { args: [FFIType.cstring, FFIType.cstring, FFIType.i32, FFIType.i32], returns: FFIType.i32 },
