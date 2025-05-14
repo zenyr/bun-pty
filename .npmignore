@@ -1,0 +1,49 @@
+# Source control
+.git/
+.github/
+.gitignore
+.gitattributes
+
+# Rust source files (we only need the compiled libraries)
+/rust-pty/src/
+/rust-pty/Cargo.toml
+/rust-pty/Cargo.lock
+/rust-pty/target/debug/
+
+# Editor configs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Test and example files
+*test.ts
+*test.js
+tests/
+examples/
+test-pty.js
+real-device-test.ts
+activity-monitor-test.ts
+
+# Configuration files
+.eslintrc
+.prettierrc
+tsconfig.json
+.editorconfig
+
+# Build scripts that aren't needed in the published package
+build.sh
+build.ts
+
+# Documentation files not needed in the package
+CONTRIBUTING.md
+CHANGELOG.md
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log* 

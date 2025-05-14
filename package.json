@@ -1,0 +1,48 @@
+{
+  "name": "bun-pty",
+  "version": "0.1.0",
+  "description": "A cross-platform pseudo-terminal (PTY) implementation for Bun using Rust and FFI",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sursaone/bun-pty.git"
+  },
+  "author": "Dilip Thapa",
+  "license": "MIT",
+  "keywords": [
+    "bun",
+    "pty",
+    "terminal",
+    "ffi",
+    "rust",
+    "node-pty",
+    "pseudoterminal"
+  ],
+  "scripts": {
+    "prepare": "bun run build",
+    "prepack": "bun run build",
+    "build:rust": "cd rust-pty && cargo build --release",
+    "build:ts": "bun build ./src/index.ts --outdir ./dist --target bun",
+    "build": "bun run build:rust && bun run build:ts",
+    "test": "bun test",
+    "test:integration": "RUN_INTEGRATION_TESTS=true bun test src/terminal.integration.test.ts",
+    "clean": "rm -rf ./dist && cd rust-pty && cargo clean"
+  },
+  "engines": {
+    "bun": ">=1.0.0"
+  },
+  "files": [
+    "dist",
+    "src",
+    "rust-pty/target/release/librust_pty.dylib",
+    "rust-pty/target/release/librust_pty.so",
+    "rust-pty/target/release/rust_pty.dll",
+    "README.md",
+    "LICENSE"
+  ],
+  "devDependencies": {
+    "@types/bun": "^1.2.13"
+  }
+}
