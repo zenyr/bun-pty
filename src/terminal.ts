@@ -40,15 +40,24 @@ function resolveLibPath(): string {
 
 const libPath = resolveLibPath();
 console.log("libPath", libPath);
-const lib = dlopen(libPath, {
-  bun_pty_spawn:  { args: [FFIType.cstring, FFIType.cstring, FFIType.i32, FFIType.i32], returns: FFIType.i32 },
-  bun_pty_write:  { args: [FFIType.i32, FFIType.pointer, FFIType.i32],               returns: FFIType.i32 },
-  bun_pty_read:   { args: [FFIType.i32, FFIType.pointer, FFIType.i32],               returns: FFIType.i32 },
-  bun_pty_resize: { args: [FFIType.i32, FFIType.i32, FFIType.i32],                   returns: FFIType.i32 },
-  bun_pty_kill:   { args: [FFIType.i32],                                             returns: FFIType.i32 },
-  bun_pty_get_pid:{ args: [FFIType.i32],                                             returns: FFIType.i32 },
-  bun_pty_close:  { args: [FFIType.i32],                                             returns: FFIType.void },
-});
+
+// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+let lib: any;
+
+// try to load the lib, if it fails log the error
+try {
+  lib = dlopen(libPath, {
+    bun_pty_spawn:  { args: [FFIType.cstring, FFIType.cstring, FFIType.i32, FFIType.i32], returns: FFIType.i32 },
+    bun_pty_write:  { args: [FFIType.i32, FFIType.pointer, FFIType.i32],                  returns: FFIType.i32 },
+    bun_pty_read:   { args: [FFIType.i32, FFIType.pointer, FFIType.i32],                  returns: FFIType.i32 },
+    bun_pty_resize: { args: [FFIType.i32, FFIType.i32, FFIType.i32],                      returns: FFIType.i32 },
+    bun_pty_kill:   { args: [FFIType.i32],                                                returns: FFIType.i32 },
+    bun_pty_get_pid:{ args: [FFIType.i32],                                                returns: FFIType.i32 },
+    bun_pty_close:  { args: [FFIType.i32],                                                returns: FFIType.void },
+  });
+} catch (error) {
+  console.error("Failed to load lib", error);
+}
 
 export class Terminal implements IPty {
   private handle = -1;

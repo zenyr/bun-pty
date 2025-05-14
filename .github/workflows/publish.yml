@@ -2,118 +2,124 @@ name: Publish Package
 
 on:
   release:
-    types: [created]
-  workflow_dispatch:
+    types: [created]     # run when you create a GitHub Release
+  workflow_dispatch:     # or trigger manually
 
 permissions:
   contents: write
+  id-token: write        # needed for npm provenance
 
+env:
+  RELEASE_DIR: rust-pty/target/release   # where JS expects the libs
+
+###############################################################################
+# 1 ▸ Build rust-pty for every target
+###############################################################################
 jobs:
-  build-rust:
-    name: Build Rust Library (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+  build-libs:
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-latest]
+        include:
+          # ─────────── Linux / glibc ───────────
+          - runner: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            out:    librust_pty.so
+
+          - runner: ubuntu-latest              # cross-compile arm64
+            target: aarch64-unknown-linux-gnu
+            out:    librust_pty_arm64.so
+
+          # ─────────── macOS ──────────────────
+          - runner: macos-latest
+            target: x86_64-apple-darwin
+            out:    librust_pty.dylib
+
+          - runner: macos-latest
+            target: aarch64-apple-darwin
+            out:    librust_pty_arm64.dylib
+
+          # ─────────── Windows ───────────────
+          - runner: windows-latest
+            target: x86_64-pc-windows-gnu
+            out:    rust_pty.dll
 
     steps:
       - uses: actions/checkout@v4
-      
+
+      # Install requested Rust tool-chain (incl. cross target)
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
-      
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
-      
-      - name: Build Rust Library
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+
+      # Extra linker for aarch64 cross-compile on Ubuntu
+      - name: Install aarch64 linker
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Build rust-pty
         run: |
           cd rust-pty
-          cargo build --release
-      
-      - name: Prepare Linux library
-        if: runner.os == 'Linux'
-        run: |
-          mv rust-pty/target/release/librust_pty.so librust_pty_$(uname -m).so
-      
-      - name: Upload Linux library
-        if: runner.os == 'Linux'
-        uses: svenstaro/upload-release-action@v2
-        with:
-          file: librust_pty_*.so
-          tag: ${{ github.ref }}
-          overwrite: true
-          file_glob: true
-      
-      - name: Prepare macOS library
-        if: runner.os == 'macOS'
-        run: |
-          mv rust-pty/target/release/librust_pty.dylib librust_pty_$(uname -m).dylib
-      
-      - name: Upload macOS library
-        if: runner.os == 'macOS'
-        uses: svenstaro/upload-release-action@v2
-        with:
-          file: librust_pty_*.dylib
-          tag: ${{ github.ref }}
-          overwrite: true
-          file_glob: true
-      
-      - name: Upload Windows library
-        if: runner.os == 'Windows'
-        uses: svenstaro/upload-release-action@v2
-        with:
-          file: rust-pty/target/release/rust_pty.dll
-          tag: ${{ github.ref }}
-          overwrite: true
+          cargo build --release --target ${{ matrix.target }}
 
+      # Collect & rename the single produced shared object
+      - name: Collect artefact
+        shell: bash
+        run: |
+          mkdir -p out
+          shopt -s nullglob
+          src=(rust-pty/target/${{ matrix.target }}/release/*.{so,dylib,dll})
+          if [[ ${#src[@]} -eq 0 ]]; then
+            echo "No shared library found"; exit 1
+          fi
+          cp "${src[0]}" "out/${{ matrix.out }}"
+
+      # Upload all libs under one artefact name
+      - uses: actions/upload-artifact@v4
+        with:
+          name: compiled-libs
+          path: out/*
+          if-no-files-found: error
+
+###############################################################################
+# 2 ▸ Publish to npm
+###############################################################################
   publish:
-    name: Publish to npm
-    needs: build-rust
+    needs: build-libs
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+
+      # Set up Bun (includes Node & npm)
+      - uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
-      
-      - name: Install Dependencies
-        run: bun install
-      
-      - name: Create release directory
-        run: |
-          mkdir -p rust-pty/target/release
-      
-      - name: Download Release Assets
-        run: |
-          # Create necessary directories
-          mkdir -p rust-pty/target/release
-          
-          # Get release tag
-          TAG="${{ github.ref_name }}"
-          if [[ -z "$TAG" ]]; then
-            TAG="${{ github.ref }}"
-            TAG=${TAG#refs/tags/}
-          fi
-          
-          # Download assets
-          curl -L "https://github.com/${{ github.repository }}/releases/download/$TAG/librust_pty_aarch64.so" -o "rust-pty/target/release/librust_pty.so" || echo "Failed to download Linux library"
-          curl -L "https://github.com/${{ github.repository }}/releases/download/$TAG/rust_pty.dll" -o "rust-pty/target/release/rust_pty.dll" || echo "Failed to download Windows library"
-          curl -L "https://github.com/${{ github.repository }}/releases/download/$TAG/librust_pty_arm64.dylib" -o "rust-pty/target/release/librust_pty.dylib" || echo "Failed to download macOS library"
-          
-          # List files
-          ls -la rust-pty/target/release/
-      
+
+      - name: Install JS deps
+        run: bun install --production
+
+      # Download all compiled shared libs
+      - uses: actions/download-artifact@v4
+        with:
+          name: compiled-libs
+          path: ${{ env.RELEASE_DIR }}
+
+      - name: List bundled libs
+        run: ls -R ${{ env.RELEASE_DIR }}
+
+      # Build the TS/JS part of the package
       - name: Build TypeScript
         run: bun run build:ts
-      
-      - name: Set up npm authentication
-        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
-      
+
+      # Publish to npm (with provenance)
       - name: Publish to npm
-        run: npm publish
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+          npm publish --provenance
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }} 
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
