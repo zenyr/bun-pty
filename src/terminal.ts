@@ -12,49 +12,41 @@ export const DEFAULT_ROWS = 24;
 export const DEFAULT_FILE = "sh";
 export const DEFAULT_NAME = "xterm";
 
-/* ---------- FFI bindings ---------- */
+// terminal.ts  – loader fragment only
 
-// Base directory is one level up from the current file
-const base = Bun.fileURLToPath(new URL("..", import.meta.url));
+function resolveLibPath(): string {
+  // 1. explicit override (Docker, CI, custom installs)
+  const env = process.env.BUN_PTY_LIB;
+  if (env && existsSync(env)) return env;
 
-// Check for architecture-specific libraries first, then fall back to generic ones
-const findLibrary = (baseName: string, archNames: string[]): string => {
+  // 2. standard location inside the package
+  const base = Bun.fileURLToPath(new URL("..", import.meta.url));
   const releaseDir = join(base, "rust-pty", "target", "release");
-  
-  // Check for architecture-specific files first
-  for (const name of archNames) {
-    const path = join(releaseDir, name);
-    try {
-      if (existsSync(path)) {
-        return path;
-      }
-    } catch (e) {
-      // Ignore errors and try next file
-    }
-  }
-  
-  // Fall back to generic name
-  return join(releaseDir, baseName);
-};
+  const name =
+    process.platform === "darwin"
+      ? "librust_pty.dylib"
+      : process.platform === "win32"
+      ? "rust_pty.dll"
+      : "librust_pty.so"; // linux (default)
 
-const libPath =
-  process.platform === "darwin"
-    ? findLibrary("librust_pty.dylib", ["librust_pty_arm64.dylib", "librust_pty_x86_64.dylib"])
-    : process.platform === "linux"
-    ? findLibrary("librust_pty.so", ["librust_pty_x86_64.so", "librust_pty_aarch64.so"])
-    : findLibrary("rust_pty.dll", ["rust_pty.dll"]);
+  const path = join(releaseDir, name);
+  if (existsSync(path)) return path;
 
+  throw new Error(
+    `librust_pty shared library not found.\nChecked:\n  - ${env ?? "<env var unset>"}\n  - ${path}\nSet BUN_PTY_LIB to the correct full path or ensure the file is packaged.`,
+  );
+}
+
+const libPath = resolveLibPath();
 const lib = dlopen(libPath, {
   bun_pty_spawn:  { args: [FFIType.cstring, FFIType.cstring, FFIType.i32, FFIType.i32], returns: FFIType.i32 },
-  bun_pty_write:  { args: [FFIType.i32, FFIType.pointer, FFIType.i32],               returns: FFIType.i32 }, // length-aware
+  bun_pty_write:  { args: [FFIType.i32, FFIType.pointer, FFIType.i32],               returns: FFIType.i32 },
   bun_pty_read:   { args: [FFIType.i32, FFIType.pointer, FFIType.i32],               returns: FFIType.i32 },
   bun_pty_resize: { args: [FFIType.i32, FFIType.i32, FFIType.i32],                   returns: FFIType.i32 },
   bun_pty_kill:   { args: [FFIType.i32],                                             returns: FFIType.i32 },
   bun_pty_get_pid:{ args: [FFIType.i32],                                             returns: FFIType.i32 },
   bun_pty_close:  { args: [FFIType.i32],                                             returns: FFIType.void },
 });
-
-/* ---------- Terminal class ---------- */
 
 export class Terminal implements IPty {
   private handle = -1;

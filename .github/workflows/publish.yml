@@ -1,4 +1,4 @@
-name: Publish Package
+name: publish
 
 on:
   release:
@@ -7,113 +7,95 @@ on:
 
 permissions:
   contents: write
+  id-token: write     # for npm provenance
 
+env:
+  CARGO_TERM_COLOR: always
+  # Directory where we expect the .so/.dylib/.dll to live *inside* the package
+  RELEASE_DIR: rust-pty/target/release
+
+###############################################################################
+#  1 ──────────────────────  Build the Rust shared libs  ──────────────────────
+###############################################################################
 jobs:
-  build-rust:
-    name: Build Rust Library (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+  build:
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          # ---------- linux ----------
+          - runner: ubuntu-latest          
+            target: x86_64-unknown-linux-gnu
+            out:   librust_pty.so
+          - runner: ubuntu-latest           
+            target: aarch64-unknown-linux-gnu
+            out:   librust_pty_arm64.so
+          # ---------- macOS ----------
+          - runner: macos-latest
+            target: x86_64-apple-darwin
+            out:   librust_pty.dylib
+          - runner: macos-latest            
+            target: aarch64-apple-darwin
+            out:   librust_pty_arm64.dylib
+          - runner: windows-latest
+            target: x86_64-pc-windows-gnu   
+            out:   rust_pty.dll
 
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-      
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
-      
-      - name: Build Rust Library
+
+      - uses: dtolnay/rust-toolchain@stable
+        with: {targets: ${{ matrix.target }}}
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: build
         run: |
           cd rust-pty
-          cargo build --release
-      
-      - name: Prepare Linux library
-        if: runner.os == 'Linux'
+          cargo build --release --target ${{ matrix.target }}
+
+      - name: package artefact
+        shell: bash
         run: |
-          mv rust-pty/target/release/librust_pty.so librust_pty_$(uname -m).so
-      
-      - name: Upload Linux library
-        if: runner.os == 'Linux'
-        uses: svenstaro/upload-release-action@v2
+          mkdir -p out
+          cp rust-pty/target/${{ matrix.target }}/release/*.{so,dylib,dll} out/${{ matrix.out }}
+
+      - name: upload artefact
+        uses: actions/upload-artifact@v4
         with:
-          file: librust_pty_*.so
-          tag: ${{ github.ref }}
-          overwrite: true
-          file_glob: true
-      
-      - name: Prepare macOS library
-        if: runner.os == 'macOS'
-        run: |
-          mv rust-pty/target/release/librust_pty.dylib librust_pty_$(uname -m).dylib
-      
-      - name: Upload macOS library
-        if: runner.os == 'macOS'
-        uses: svenstaro/upload-release-action@v2
-        with:
-          file: librust_pty_*.dylib
-          tag: ${{ github.ref }}
-          overwrite: true
-          file_glob: true
-      
-      - name: Upload Windows library
-        if: runner.os == 'Windows'
-        uses: svenstaro/upload-release-action@v2
-        with:
-          file: rust-pty/target/release/rust_pty.dll
-          tag: ${{ github.ref }}
-          overwrite: true
+          name: libs
+          path: out/*
+          if-no-files-found: error
 
   publish:
-    name: Publish to npm
-    needs: build-rust
+    needs: build
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+
+      - uses: oven-sh/setup-bun@v1
+        with: {bun-version: latest}
+
+      - name: install JS deps
+        run: bun install --production
+
+      - name: download compiled libs
+        uses: actions/download-artifact@v4
         with:
-          bun-version: latest
-      
-      - name: Install Dependencies
-        run: bun install
-      
-      - name: Create release directory
+          name: libs
+          path: ${{ env.RELEASE_DIR }}
+
+      - name: list libs
+        run: ls -R ${{ env.RELEASE_DIR }}
+
+      - name: build TypeScript
+        run: bun run build:ts    
+
+      - name: publish to npm
         run: |
-          mkdir -p rust-pty/target/release
-      
-      - name: Download Release Assets
-        run: |
-          # Create necessary directories
-          mkdir -p rust-pty/target/release
-          
-          # Get release tag
-          TAG="${{ github.ref_name }}"
-          if [[ -z "$TAG" ]]; then
-            TAG="${{ github.ref }}"
-            TAG=${TAG#refs/tags/}
-          fi
-          
-          # Download assets
-          curl -L "https://github.com/${{ github.repository }}/releases/download/$TAG/librust_pty_x86_64.so" -o "rust-pty/target/release/librust_pty.so" || echo "Failed to download Linux library"
-          curl -L "https://github.com/${{ github.repository }}/releases/download/$TAG/rust_pty.dll" -o "rust-pty/target/release/rust_pty.dll" || echo "Failed to download Windows library"
-          curl -L "https://github.com/${{ github.repository }}/releases/download/$TAG/librust_pty_arm64.dylib" -o "rust-pty/target/release/librust_pty.dylib" || echo "Failed to download macOS library"
-          
-          # List files
-          ls -la rust-pty/target/release/
-      
-      - name: Build TypeScript
-        run: bun run build:ts
-      
-      - name: Set up npm authentication
-        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
-      
-      - name: Publish to npm
-        run: npm publish
+          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+          npm publish --provenance
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }} 
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
