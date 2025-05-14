@@ -31,30 +31,37 @@ jobs:
           cd rust-pty
           cargo build --release
       
-      - name: Prepare Linux library
+      # Store architecture in metadata but keep original filenames for downloads
+      - name: Prepare and Upload Linux library
         if: runner.os == 'Linux'
         run: |
-          mv rust-pty/target/release/librust_pty.so librust_pty_$(uname -m).so
+          # Keep a copy with arch in name for reference/debugging
+          cp rust-pty/target/release/librust_pty.so librust_pty_$(uname -m).so
+          # Also upload the file with original name for direct use
+          cp rust-pty/target/release/librust_pty.so librust_pty.so
       
-      - name: Upload Linux library
+      - name: Upload Linux libraries
         if: runner.os == 'Linux'
         uses: svenstaro/upload-release-action@v2
         with:
-          file: librust_pty_*.so
+          file: librust_pty*.so
           tag: ${{ github.ref }}
           overwrite: true
           file_glob: true
       
-      - name: Prepare macOS library
+      - name: Prepare and Upload macOS library
         if: runner.os == 'macOS'
         run: |
-          mv rust-pty/target/release/librust_pty.dylib librust_pty_$(uname -m).dylib
+          # Keep a copy with arch in name for reference/debugging
+          cp rust-pty/target/release/librust_pty.dylib librust_pty_$(uname -m).dylib
+          # Also upload the file with original name for direct use
+          cp rust-pty/target/release/librust_pty.dylib librust_pty.dylib
       
-      - name: Upload macOS library
+      - name: Upload macOS libraries
         if: runner.os == 'macOS'
         uses: svenstaro/upload-release-action@v2
         with:
-          file: librust_pty_*.dylib
+          file: librust_pty*.dylib
           tag: ${{ github.ref }}
           overwrite: true
           file_glob: true
@@ -99,10 +106,10 @@ jobs:
             TAG=${TAG#refs/tags/}
           fi
           
-          # Download assets
-          curl -L "https://github.com/${{ github.repository }}/releases/download/$TAG/librust_pty_x86_64.so" -o "rust-pty/target/release/librust_pty.so" || echo "Failed to download Linux library"
+          # Download assets with original filenames - these match what the code expects
+          curl -L "https://github.com/${{ github.repository }}/releases/download/$TAG/librust_pty.so" -o "rust-pty/target/release/librust_pty.so" || echo "Failed to download Linux library"
           curl -L "https://github.com/${{ github.repository }}/releases/download/$TAG/rust_pty.dll" -o "rust-pty/target/release/rust_pty.dll" || echo "Failed to download Windows library"
-          curl -L "https://github.com/${{ github.repository }}/releases/download/$TAG/librust_pty_x86_64.dylib" -o "rust-pty/target/release/librust_pty.dylib" || echo "Failed to download macOS library"
+          curl -L "https://github.com/${{ github.repository }}/releases/download/$TAG/librust_pty.dylib" -o "rust-pty/target/release/librust_pty.dylib" || echo "Failed to download macOS library"
           
           # List files
           ls -la rust-pty/target/release/
