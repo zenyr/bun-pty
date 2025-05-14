@@ -37,7 +37,9 @@ function resolveLibPath(): string {
   );
 }
 
+
 const libPath = resolveLibPath();
+console.log("libPath", libPath);
 const lib = dlopen(libPath, {
   bun_pty_spawn:  { args: [FFIType.cstring, FFIType.cstring, FFIType.i32, FFIType.i32], returns: FFIType.i32 },
   bun_pty_write:  { args: [FFIType.i32, FFIType.pointer, FFIType.i32],               returns: FFIType.i32 },
