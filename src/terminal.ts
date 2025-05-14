@@ -4,6 +4,8 @@ import { dlopen, FFIType, ptr } from "bun:ffi";
 import { Buffer } from "node:buffer";
 import { EventEmitter } from "./interfaces";
 import type { IPty, IPtyForkOptions, IExitEvent } from "./interfaces";
+import { join } from "node:path";
+import { existsSync } from "node:fs";
 
 export const DEFAULT_COLS = 80;
 export const DEFAULT_ROWS = 24;
@@ -12,17 +14,27 @@ export const DEFAULT_NAME = "xterm";
 
 /* ---------- FFI bindings ---------- */
 
+// Base directory is one level up from the current file
 const base = Bun.fileURLToPath(new URL("..", import.meta.url));
 
 // Check for architecture-specific libraries first, then fall back to generic ones
 const findLibrary = (baseName: string, archNames: string[]): string => {
+  const releaseDir = join(base, "rust-pty", "target", "release");
+  
+  // Check for architecture-specific files first
   for (const name of archNames) {
-    const path = `${base}/rust-pty/target/release/${name}`;
-    if (Bun.file(path).size > 0) {
-      return path;
+    const path = join(releaseDir, name);
+    try {
+      if (existsSync(path)) {
+        return path;
+      }
+    } catch (e) {
+      // Ignore errors and try next file
     }
   }
-  return `${base}/rust-pty/target/release/${baseName}`;
+  
+  // Fall back to generic name
+  return join(releaseDir, baseName);
 };
 
 const libPath =
