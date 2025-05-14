@@ -5,6 +5,9 @@ on:
     types: [created]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-rust:
     name: Build Rust Library (${{ matrix.os }})
@@ -13,16 +16,6 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        include:
-          - os: ubuntu-latest
-            lib-name: librust_pty.so
-            artifact-name: librust_pty-linux
-          - os: windows-latest
-            lib-name: rust_pty.dll
-            artifact-name: rust_pty-windows
-          - os: macos-latest
-            lib-name: librust_pty.dylib
-            artifact-name: librust_pty-macos
 
     steps:
       - uses: actions/checkout@v4
@@ -38,21 +31,41 @@ jobs:
           cd rust-pty
           cargo build --release
       
-      - name: Upload Rust Library (Linux/macOS)
-        if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ matrix.artifact-name }}
-          path: rust-pty/target/release/${{ matrix.lib-name }}
-          if-no-files-found: error
+      - name: Prepare Linux library
+        if: runner.os == 'Linux'
+        run: |
+          mv rust-pty/target/release/librust_pty.so librust_pty_$(uname -m).so
       
-      - name: Upload Rust Library (Windows)
-        if: matrix.os == 'windows-latest'
-        uses: actions/upload-artifact@v3
+      - name: Upload Linux library
+        if: runner.os == 'Linux'
+        uses: svenstaro/upload-release-action@v2
         with:
-          name: ${{ matrix.artifact-name }}
-          path: rust-pty/target/release/${{ matrix.lib-name }}
-          if-no-files-found: error
+          file: librust_pty_*.so
+          tag: ${{ github.ref }}
+          overwrite: true
+          file_glob: true
+      
+      - name: Prepare macOS library
+        if: runner.os == 'macOS'
+        run: |
+          mv rust-pty/target/release/librust_pty.dylib librust_pty_$(uname -m).dylib
+      
+      - name: Upload macOS library
+        if: runner.os == 'macOS'
+        uses: svenstaro/upload-release-action@v2
+        with:
+          file: librust_pty_*.dylib
+          tag: ${{ github.ref }}
+          overwrite: true
+          file_glob: true
+      
+      - name: Upload Windows library
+        if: runner.os == 'Windows'
+        uses: svenstaro/upload-release-action@v2
+        with:
+          file: rust-pty/target/release/rust_pty.dll
+          tag: ${{ github.ref }}
+          overwrite: true
 
   publish:
     name: Publish to npm
@@ -74,23 +87,25 @@ jobs:
         run: |
           mkdir -p rust-pty/target/release
       
-      - name: Download Linux Library
-        uses: actions/download-artifact@v3
-        with:
-          name: librust_pty-linux
-          path: rust-pty/target/release/
-      
-      - name: Download Windows Library
-        uses: actions/download-artifact@v3
-        with:
-          name: rust_pty-windows
-          path: rust-pty/target/release/
-      
-      - name: Download macOS Library
-        uses: actions/download-artifact@v3
-        with:
-          name: librust_pty-macos
-          path: rust-pty/target/release/
+      - name: Download Release Assets
+        run: |
+          # Create necessary directories
+          mkdir -p rust-pty/target/release
+          
+          # Get release tag
+          TAG="${{ github.ref_name }}"
+          if [[ -z "$TAG" ]]; then
+            TAG="${{ github.ref }}"
+            TAG=${TAG#refs/tags/}
+          fi
+          
+          # Download assets
+          curl -L "https://github.com/${{ github.repository }}/releases/download/$TAG/librust_pty_x86_64.so" -o "rust-pty/target/release/librust_pty.so" || echo "Failed to download Linux library"
+          curl -L "https://github.com/${{ github.repository }}/releases/download/$TAG/rust_pty.dll" -o "rust-pty/target/release/rust_pty.dll" || echo "Failed to download Windows library"
+          curl -L "https://github.com/${{ github.repository }}/releases/download/$TAG/librust_pty_x86_64.dylib" -o "rust-pty/target/release/librust_pty.dylib" || echo "Failed to download macOS library"
+          
+          # List files
+          ls -la rust-pty/target/release/
       
       - name: Build TypeScript
         run: bun run build:ts
