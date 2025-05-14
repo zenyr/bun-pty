@@ -3,49 +3,55 @@ name: Publish Package
 on:
   release:
     types: [created]
+  workflow_dispatch:
 
 jobs:
   build-rust:
     name: Build Rust Library (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         include:
           - os: ubuntu-latest
-            rust-target: x86_64-unknown-linux-gnu
             lib-name: librust_pty.so
             artifact-name: librust_pty-linux
           - os: windows-latest
-            rust-target: x86_64-pc-windows-msvc
             lib-name: rust_pty.dll
             artifact-name: rust_pty-windows
           - os: macos-latest
-            rust-target: x86_64-apple-darwin
             lib-name: librust_pty.dylib
             artifact-name: librust_pty-macos
 
     steps:
       - uses: actions/checkout@v4
       
-      - name: Setup Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          target: ${{ matrix.rust-target }}
-          override: true
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
       
       - name: Build Rust Library
         run: |
           cd rust-pty
-          cargo build --release --target ${{ matrix.rust-target }}
+          cargo build --release
       
-      - name: Upload Rust Library
+      - name: Upload Rust Library (Linux/macOS)
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
         uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.artifact-name }}
-          path: rust-pty/target/${{ matrix.rust-target }}/release/${{ matrix.lib-name }}
+          path: rust-pty/target/release/${{ matrix.lib-name }}
+          if-no-files-found: error
+      
+      - name: Upload Rust Library (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: rust-pty/target/release/${{ matrix.lib-name }}
           if-no-files-found: error
 
   publish:
