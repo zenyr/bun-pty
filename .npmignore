@@ -3,47 +3,96 @@
 .github/
 .gitignore
 .gitattributes
+.npmrc
 
-# Rust source files (we only need the compiled libraries)
+# Rust files (we only need the compiled libraries)
 /rust-pty/src/
 /rust-pty/Cargo.toml
 /rust-pty/Cargo.lock
 /rust-pty/target/debug/
+/rust-pty/target/.rustc_info.json
+/rust-pty/target/CACHEDIR.TAG
 
 # Editor configs
 .vscode/
 .idea/
+.editorconfig
 *.swp
 *.swo
+*.sublime*
+.project
+.classpath
+*.iml
+*.vim
 
 # Test and example files
 *test.ts
 *test.js
+*.spec.ts
+*.spec.js
 tests/
+__tests__/
 examples/
 test-pty.js
 real-device-test.ts
 activity-monitor-test.ts
+coverage/
+.nyc_output/
 
 # Configuration files
-.eslintrc
-.prettierrc
+.eslintrc*
+.prettierrc*
+.stylelintrc*
+.babelrc*
+jest.config.*
 tsconfig.json
-.editorconfig
+tsconfig.*.json
+.travis.yml
+.gitlab-ci.yml
+.github/
+renovate.json
+.husky/
+.commitlintrc.json
 
-# Build scripts that aren't needed in the published package
+# Build files and scripts
 build.sh
 build.ts
+*.tsbuildinfo
+.bun
 
-# Documentation files not needed in the package
+# Documentation files not needed in the published package
+docs/
 CONTRIBUTING.md
-CHANGELOG.md
+CODE_OF_CONDUCT.md
+.all-contributorsrc
+SECURITY.md
+
+# The changelog can be useful for users to see, so we'll keep it
+# CHANGELOG.md
+
+# Dependency directories
+node_modules/
 
 # OS specific files
 .DS_Store
 Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
 
 # Logs
 logs/
 *.log
-npm-debug.log* 
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+.cache/ 

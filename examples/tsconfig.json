@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "baseUrl": "..",
+    "paths": {
+      "*": ["node_modules/*"],
+      "bun-pty": ["src/index.ts"]
+    },
+    "types": ["bun-types"]
+  },
+  "include": ["*.ts"]
+} 

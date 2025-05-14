@@ -70,6 +70,39 @@ setTimeout(() => {
 }, 5000);
 ```
 
+### TypeScript Usage
+
+The library includes complete TypeScript definitions. Here's how to use it with full type safety:
+
+```typescript
+import { spawn } from "bun-pty";
+import type { IPty, IExitEvent, IPtyForkOptions } from "bun-pty";
+
+// Create typed options
+const options: IPtyForkOptions = {
+  name: "xterm-256color",
+  cols: 100,
+  rows: 30,
+  cwd: process.cwd()
+};
+
+// Create a terminal with proper typing
+const terminal: IPty = spawn("bash", [], options);
+
+// Typed event handlers
+const dataHandler = terminal.onData((data: string) => {
+  process.stdout.write(data);
+});
+
+const exitHandler = terminal.onExit((event: IExitEvent) => {
+  console.log(`Process exited with code: ${event.exitCode}`);
+});
+
+// Clean up when done
+dataHandler.dispose();
+exitHandler.dispose();
+```
+
 ### Interactive Shell Example
 
 ```typescript
