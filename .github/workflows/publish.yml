@@ -1,0 +1,98 @@
+name: Publish Package
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build-rust:
+    name: Build Rust Library (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            rust-target: x86_64-unknown-linux-gnu
+            lib-name: librust_pty.so
+            artifact-name: librust_pty-linux
+          - os: windows-latest
+            rust-target: x86_64-pc-windows-msvc
+            lib-name: rust_pty.dll
+            artifact-name: rust_pty-windows
+          - os: macos-latest
+            rust-target: x86_64-apple-darwin
+            lib-name: librust_pty.dylib
+            artifact-name: librust_pty-macos
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: ${{ matrix.rust-target }}
+          override: true
+      
+      - name: Build Rust Library
+        run: |
+          cd rust-pty
+          cargo build --release --target ${{ matrix.rust-target }}
+      
+      - name: Upload Rust Library
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: rust-pty/target/${{ matrix.rust-target }}/release/${{ matrix.lib-name }}
+          if-no-files-found: error
+
+  publish:
+    name: Publish to npm
+    needs: build-rust
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+      
+      - name: Install Dependencies
+        run: bun install
+      
+      - name: Create release directory
+        run: |
+          mkdir -p rust-pty/target/release
+      
+      - name: Download Linux Library
+        uses: actions/download-artifact@v3
+        with:
+          name: librust_pty-linux
+          path: rust-pty/target/release/
+      
+      - name: Download Windows Library
+        uses: actions/download-artifact@v3
+        with:
+          name: rust_pty-windows
+          path: rust-pty/target/release/
+      
+      - name: Download macOS Library
+        uses: actions/download-artifact@v3
+        with:
+          name: librust_pty-macos
+          path: rust-pty/target/release/
+      
+      - name: Build TypeScript
+        run: bun run build:ts
+      
+      - name: Set up npm authentication
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
+      
+      - name: Publish to npm
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }} 
