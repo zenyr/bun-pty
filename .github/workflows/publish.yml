@@ -14,9 +14,6 @@ env:
   # Directory where we expect the .so/.dylib/.dll to live *inside* the package
   RELEASE_DIR: rust-pty/target/release
 
-###############################################################################
-#  1 ──────────────────────  Build the Rust shared libs  ──────────────────────
-###############################################################################
 jobs:
   build:
     runs-on: ${{ matrix.runner }}
@@ -24,45 +21,51 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # ---------- linux ----------
-          - runner: ubuntu-latest          
+          # ── Linux (glibc) x86_64 ────────────────────────────────────────────
+          - runner: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            out:   librust_pty.so
-          - runner: ubuntu-latest           
+            out:    librust_pty.so
+          # ── Linux (glibc) arm64 (cross-compile) ─────────────────────────────
+          - runner: ubuntu-latest
             target: aarch64-unknown-linux-gnu
-            out:   librust_pty_arm64.so
-          # ---------- macOS ----------
+            out:    librust_pty_arm64.so
+          # ── macOS Intel ─────────────────────────────────────────────────────
           - runner: macos-latest
             target: x86_64-apple-darwin
-            out:   librust_pty.dylib
-          - runner: macos-latest            
+            out:    librust_pty.dylib
+          # ── macOS Apple Silicon ─────────────────────────────────────────────
+          - runner: macos-latest
             target: aarch64-apple-darwin
-            out:   librust_pty_arm64.dylib
+            out:    librust_pty_arm64.dylib
+          # ── Windows x86_64 ──────────────────────────────────────────────────
           - runner: windows-latest
-            target: x86_64-pc-windows-gnu   
-            out:   rust_pty.dll
+            target: x86_64-pc-windows-gnu
+            out:    rust_pty.dll
 
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@stable
-        with: {targets: ${{ matrix.target }}}
+      # --- Rust toolchain (with target)  ------------------------------------
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
       - uses: Swatinem/rust-cache@v2
 
-      - name: build
+      - name: Build rust-pty
         run: |
           cd rust-pty
           cargo build --release --target ${{ matrix.target }}
 
-      - name: package artefact
+      # Package artefact
+      - name: Collect artefact
         shell: bash
         run: |
           mkdir -p out
           cp rust-pty/target/${{ matrix.target }}/release/*.{so,dylib,dll} out/${{ matrix.out }}
 
-      - name: upload artefact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: libs
           path: out/*
