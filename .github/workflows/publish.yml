@@ -102,7 +102,7 @@ jobs:
           # Download assets
           curl -L "https://github.com/${{ github.repository }}/releases/download/$TAG/librust_pty_x86_64.so" -o "rust-pty/target/release/librust_pty.so" || echo "Failed to download Linux library"
           curl -L "https://github.com/${{ github.repository }}/releases/download/$TAG/rust_pty.dll" -o "rust-pty/target/release/rust_pty.dll" || echo "Failed to download Windows library"
-          curl -L "https://github.com/${{ github.repository }}/releases/download/$TAG/librust_pty_x86_64.dylib" -o "rust-pty/target/release/librust_pty.dylib" || echo "Failed to download macOS library"
+          curl -L "https://github.com/${{ github.repository }}/releases/download/$TAG/librust_pty_arm64.dylib" -o "rust-pty/target/release/librust_pty.dylib" || echo "Failed to download macOS library"
           
           # List files
           ls -la rust-pty/target/release/
