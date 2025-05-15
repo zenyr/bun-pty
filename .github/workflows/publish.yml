@@ -1,6 +1,7 @@
 name: Publish Package
+
 on:
-  release:    { types: [created, edited] }
+  release: { types: [created, edited] }
   workflow_dispatch:
 
 permissions:
@@ -35,10 +36,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+
       - uses: Swatinem/rust-cache@v2
 
       - name: Install aarch64 linker
@@ -72,9 +75,15 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          # include the target in the artifact name
           name: compiled-libs-${{ matrix.target }}
           path: out/*
+
+      - name: Upload to GitHub Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: out/*
+          fail_on_unmatched_files: true
 
   publish:
     needs: build-libs
@@ -90,11 +99,15 @@ jobs:
       - name: Install JS deps
         run: bun install
 
-      # Download **all** compiled-libs-* artifacts
-      - uses: actions/download-artifact@v4
+      - name: Download all compiled libs
+        uses: actions/download-artifact@v4
         with:
-          path: ${{ env.RELEASE_DIR }}
-          # no `name:` => pulls down every artifact
+          path: downloaded-libs
+
+      - name: Move compiled libs into final release path
+        run: |
+          mkdir -p ${{ env.RELEASE_DIR }}
+          find downloaded-libs -type f \( -name '*.so' -o -name '*.dylib' -o -name '*.dll' \) -exec cp {} ${{ env.RELEASE_DIR }}/ \;
 
       - name: List bundled libs
         run: ls -R ${{ env.RELEASE_DIR }}
@@ -104,7 +117,7 @@ jobs:
 
       - name: Set up npm authentication
         run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
-      
+
       - name: Publish to npm
         run: npm publish
         env:
