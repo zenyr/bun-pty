@@ -1,6 +1,6 @@
 name: Publish Package
 on:
-  release:    { types: [created] }
+  release:    { types: [created, edited] }
   workflow_dispatch:
 
 permissions:

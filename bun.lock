@@ -3,6 +3,9 @@
   "workspaces": {
     "": {
       "name": "bun-pty",
+      "dependencies": {
+        "@types/node": "^22.15.18",
+      },
       "devDependencies": {
         "@types/bun": "^1.2.13",
         "typescript": "^5.8.3",
