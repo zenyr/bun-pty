@@ -1,20 +1,15 @@
 name: Publish Package
-
 on:
-  release:
-    types: [created]     # run when you create a GitHub Release
-  workflow_dispatch:     # or trigger manually
+  release:    { types: [created] }
+  workflow_dispatch:
 
 permissions:
   contents: write
-  id-token: write        # needed for npm provenance
+  id-token: write
 
 env:
-  RELEASE_DIR: rust-pty/target/release   # where JS expects the libs
+  RELEASE_DIR: rust-pty/target/release
 
-###############################################################################
-# 1 ▸ Build rust-pty for every target
-###############################################################################
 jobs:
   build-libs:
     runs-on: ${{ matrix.runner }}
@@ -22,72 +17,65 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # ─────────── Linux / glibc ───────────
           - runner: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             out:    librust_pty.so
-
-          - runner: ubuntu-latest              # cross-compile arm64
+          - runner: ubuntu-latest
             target: aarch64-unknown-linux-gnu
             out:    librust_pty_arm64.so
-
-          # ─────────── macOS ──────────────────
           - runner: macos-latest
             target: x86_64-apple-darwin
             out:    librust_pty.dylib
-
           - runner: macos-latest
             target: aarch64-apple-darwin
             out:    librust_pty_arm64.dylib
-
-          # ─────────── Windows ───────────────
           - runner: windows-latest
             target: x86_64-pc-windows-gnu
             out:    rust_pty.dll
 
     steps:
       - uses: actions/checkout@v4
-
-      # Install requested Rust tool-chain (incl. cross target)
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
-
       - uses: Swatinem/rust-cache@v2
 
-      # Extra linker for aarch64 cross-compile on Ubuntu
       - name: Install aarch64 linker
         if: matrix.target == 'aarch64-unknown-linux-gnu'
-        run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross
+
+      - name: Configure aarch64 linker
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          mkdir -p rust-pty/.cargo
+          cat > rust-pty/.cargo/config.toml << 'EOF'
+          [target.aarch64-unknown-linux-gnu]
+          linker = "aarch64-linux-gnu-gcc"
+          EOF
 
       - name: Build rust-pty
         run: |
           cd rust-pty
           cargo build --release --target ${{ matrix.target }}
 
-      # Collect & rename the single produced shared object
       - name: Collect artefact
         shell: bash
         run: |
           mkdir -p out
           shopt -s nullglob
           src=(rust-pty/target/${{ matrix.target }}/release/*.{so,dylib,dll})
-          if [[ ${#src[@]} -eq 0 ]]; then
-            echo "No shared library found"; exit 1
-          fi
+          [[ ${#src[@]} -gt 0 ]] || { echo "❌ no lib"; exit 1; }
           cp "${src[0]}" "out/${{ matrix.out }}"
 
-      # Upload all libs under one artefact name
       - uses: actions/upload-artifact@v4
         with:
-          name: compiled-libs
+          # include the target in the artifact name
+          name: compiled-libs-${{ matrix.target }}
           path: out/*
-          if-no-files-found: error
 
-###############################################################################
-# 2 ▸ Publish to npm
-###############################################################################
   publish:
     needs: build-libs
     runs-on: ubuntu-latest
@@ -95,7 +83,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Set up Bun (includes Node & npm)
       - uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
@@ -103,20 +90,18 @@ jobs:
       - name: Install JS deps
         run: bun install --production
 
-      # Download all compiled shared libs
+      # Download **all** compiled-libs-* artifacts
       - uses: actions/download-artifact@v4
         with:
-          name: compiled-libs
           path: ${{ env.RELEASE_DIR }}
+          # no `name:` => pulls down every artifact
 
       - name: List bundled libs
         run: ls -R ${{ env.RELEASE_DIR }}
 
-      # Build the TS/JS part of the package
       - name: Build TypeScript
         run: bun run build:ts
 
-      # Publish to npm (with provenance)
       - name: Publish to npm
         run: |
           echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
