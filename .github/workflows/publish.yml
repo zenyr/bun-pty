@@ -102,7 +102,7 @@ jobs:
       - name: Build TypeScript
         run: bun run build:ts
 
-     - name: Set up npm authentication
+      - name: Set up npm authentication
         run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
       
       - name: Publish to npm
