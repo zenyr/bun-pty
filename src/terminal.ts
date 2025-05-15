@@ -15,31 +15,39 @@ export const DEFAULT_NAME = "xterm";
 // terminal.ts  – loader fragment only
 
 function resolveLibPath(): string {
-	// 1. explicit override (Docker, CI, custom installs)
 	const env = process.env.BUN_PTY_LIB;
 	if (env && existsSync(env)) return env;
 
-	// 2. standard location inside the package
-	const base = Bun.fileURLToPath(new URL("..", import.meta.url));
-	const releaseDir = join(base, "rust-pty", "target", "release");
-  
-	let name: string;
-	if (process.platform === "darwin") {
-		name =
-			process.arch === "arm64"
+	const platform = process.platform;
+	const arch = process.arch;
+
+	const filename =
+		platform === "darwin"
+			? arch === "arm64"
 				? "librust_pty_arm64.dylib"
-				: "librust_pty.dylib";
-	} else if (process.platform === "win32") {
-		name = "rust_pty.dll";
-	} else {
-		name = process.arch === "arm64" ? "librust_pty_arm64.so" : "librust_pty.so";
+				: "librust_pty.dylib"
+			: platform === "win32"
+			? "rust_pty.dll"
+			: arch === "arm64"
+			? "librust_pty_arm64.so"
+			: "librust_pty.so";
+
+	// Start from the current module's location (inside node_modules/bun-pty/dist)
+	const base = Bun.fileURLToPath(import.meta.url);
+	const here = base.replace(/\/dist\/.*$/, ""); // up to bun-pty/
+
+	const fallbackPaths = [
+		join(here, "rust-pty", "target", "release", filename),       // node_modules/bun-pty/rust-pty/target/release
+		join(here, "..", "bun-pty", "rust-pty", "target", "release", filename), // monorepo setups
+		join(process.cwd(), "node_modules", "bun-pty", "rust-pty", "target", "release", filename),
+	];
+
+	for (const path of fallbackPaths) {
+		if (existsSync(path)) return path;
 	}
 
-	const path = join(releaseDir, name);
-	if (existsSync(path)) return path;
-
 	throw new Error(
-		`librust_pty shared library not found.\nChecked:\n  - ${env ?? "<env var unset>"}\n  - ${path}\nSet BUN_PTY_LIB to the correct full path or ensure the file is packaged.`,
+		`librust_pty shared library not found.\nChecked:\n  - BUN_PTY_LIB=${env ?? "<unset>"}\n  - ${fallbackPaths.join("\n  - ")}\n\nSet BUN_PTY_LIB or ensure one of these paths contains the file.`
 	);
 }
 
