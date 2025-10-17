@@ -138,3 +138,8 @@ dist
 # Rust build artifacts
 rust-pty/target/
 target
+
+# Platform-specific npm packages (built libraries only, keep package.json and index.js)
+npm/**/*.so
+npm/**/*.dylib
+npm/**/*.dll
