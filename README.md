@@ -17,14 +17,50 @@ A cross-platform pseudo-terminal (PTY) implementation for Bun, powered by Rust's
 
 ## 📦 Installation
 
+### From npm (recommended)
+
 ```bash
 bun add bun-pty
+```
+
+### From GitHub (for development or specific branches)
+
+If you want to install directly from a GitHub repository or a specific branch:
+
+```bash
+bun add github:zenyr/bun-pty#merged
+```
+
+**Important:** Bun requires explicit permission to run install scripts for security reasons. Add the package to `trustedDependencies` in your `package.json`:
+
+```json
+{
+  "dependencies": {
+    "bun-pty": "github:zenyr/bun-pty#merged"
+  },
+  "trustedDependencies": [
+    "bun-pty"
+  ]
+}
+```
+
+Then reinstall:
+
+```bash
+bun install
+```
+
+Alternatively, you can use the `--trust` flag during installation:
+
+```bash
+bun add github:zenyr/bun-pty#merged --trust
 ```
 
 ## ⚙️ Requirements
 
 - **Bun** 1.0.0 or higher
-- **Rust** is only needed if you're building from source (the npm package includes pre-built binaries)
+- **Rust toolchain** (cargo) is required when installing from GitHub, as the package needs to be built from source
+- **TypeScript** (included as devDependency)
 
 ## 📋 Platform Support
 
