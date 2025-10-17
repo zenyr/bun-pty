@@ -10,19 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.4.2] - 2025-10-17
 
 ### Fixed
-- **Native library resolution**: Replaced `require.resolve()` with direct filesystem-based resolution for Bun's ESM environment
+- **Native library resolution**: Fixed platform-specific native library loading in Bun's ESM environment
   - Previous implementation using `require.resolve()` failed to resolve platform-specific packages in Bun runtime
-  - Now searches multiple `node_modules` locations including parent directories for nested installations
-  - Parses platform package's `index.mjs` to extract correct library path
-  - Falls back to direct filename construction if parsing fails
+  - Now uses `await import()` to dynamically load platform packages (simplest and correct approach!)
+  - Platform packages already export library path as default export
   - Maintains backward compatibility with `BUN_PTY_LIB` environment variable
-  - Issue: https://github.com/zenyr/bun-pty/issues/[TBD]
+  - Filesystem-based search as fallback for edge cases
 
-### Technical Details
-- Changed from `require.resolve()` → filesystem path traversal
-- Added `readFileSync` to parse platform package exports
-- Searches up to 5 parent directories for monorepo/workspace scenarios
-- More resilient to different project structures and installation methods
+### Changed
+- **Top-level await**: Updated to use top-level await for async module initialization
+  - TypeScript config updated to ES2022 with `moduleResolution: bundler`
+  - Much simpler and more maintainable code
+  - Works seamlessly with Bun's native module resolution
 
 ## [0.4.0] - 2025-10-17
 
