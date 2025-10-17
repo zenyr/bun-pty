@@ -1,0 +1,31 @@
+{
+	"name": "@zenyr/bun-pty-win32-x64",
+	"version": "0.3.4",
+	"description": "Windows x64 native library for @zenyr/bun-pty",
+	"main": "index.js",
+	"os": ["win32"],
+	"cpu": ["x64"],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/zenyr/bun-pty.git"
+	},
+	"author": {
+		"name": "Jinhyeok Lee",
+		"url": "https://github.com/zenyr"
+	},
+	"license": "MIT",
+	"keywords": [
+		"bun",
+		"pty",
+		"terminal",
+		"windows",
+		"native"
+	],
+	"files": [
+		"rust_pty.dll",
+		"index.js"
+	],
+	"publishConfig": {
+		"access": "public"
+	}
+}

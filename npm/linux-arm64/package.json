@@ -1,0 +1,32 @@
+{
+	"name": "@zenyr/bun-pty-linux-arm64",
+	"version": "0.3.4",
+	"description": "Linux ARM64 native library for @zenyr/bun-pty",
+	"main": "index.js",
+	"os": ["linux"],
+	"cpu": ["arm64"],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/zenyr/bun-pty.git"
+	},
+	"author": {
+		"name": "Jinhyeok Lee",
+		"url": "https://github.com/zenyr"
+	},
+	"license": "MIT",
+	"keywords": [
+		"bun",
+		"pty",
+		"terminal",
+		"linux",
+		"arm64",
+		"native"
+	],
+	"files": [
+		"librust_pty_arm64.so",
+		"index.js"
+	],
+	"publishConfig": {
+		"access": "public"
+	}
+}
