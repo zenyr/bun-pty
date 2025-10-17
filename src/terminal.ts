@@ -40,6 +40,7 @@ function resolveLibPath(): string {
 		join(here, "rust-pty", "target", "release", filename),       // node_modules/bun-pty/rust-pty/target/release
 		join(here, "..", "bun-pty", "rust-pty", "target", "release", filename), // monorepo setups
 		join(process.cwd(), "node_modules", "bun-pty", "rust-pty", "target", "release", filename),
+		join(process.cwd(), "rust-pty", "target", "release", filename), // development: run from project root
 	];
 
 	for (const path of fallbackPaths) {
@@ -105,7 +106,17 @@ export class Terminal implements IPty {
 		this._rows = opts.rows ?? DEFAULT_ROWS;
 		const cwd = opts.cwd ?? process.cwd();
 
-		const cmdline = [file, ...args].join(" ");
+		// Properly quote arguments that contain spaces or special characters
+		const quoteArg = (arg: string): string => {
+			// If argument contains spaces, quotes, or special shell characters, quote it
+			if (/[\s'"$`\\!*?#&;|<>(){}[\]]/.test(arg)) {
+				// Escape single quotes by replacing ' with '\''
+				return `'${arg.replace(/'/g, "'\\''")}'`;
+			}
+			return arg;
+		};
+
+		const cmdline = [file, ...args.map(quoteArg)].join(" ");
 
 		this.handle = lib.symbols.bun_pty_spawn(
 			Buffer.from(`${cmdline}\0`, "utf8"),
