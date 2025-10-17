@@ -14,7 +14,7 @@ export const DEFAULT_NAME = "xterm";
 
 // terminal.ts  – loader fragment only
 
-const resolveLibPath = (): string => {
+const resolveLibPath = async (): Promise<string> => {
 	const env = process.env.BUN_PTY_LIB;
 	if (env && existsSync(env)) return env;
 
@@ -36,75 +36,59 @@ const resolveLibPath = (): string => {
 	// Try to load from platform-specific optional dependency package first
 	const platformPackageName = `@zenyr/bun-pty-${platform}-${arch}`;
 	
+	// Strategy 1: Use dynamic import to load the platform package (SIMPLEST!)
+	// The platform package exports the library path as default export
 	try {
-		// In Bun's ESM environment, we need to construct the path directly
-		// The platform package should be in node_modules
+		const platformModule = await import(platformPackageName);
+		const libPath = platformModule.default;
+		if (typeof libPath === "string" && existsSync(libPath)) {
+			return libPath;
+		}
+	} catch {
+		// Platform package not found or failed to import, try filesystem search
+	}
+	
+	// Strategy 2: Filesystem-based search (fallback for edge cases)
+	try {
 		const base = Bun.fileURLToPath(import.meta.url);
-		
-		// Build search paths - start from current file and traverse up
 		const nodeModulesPaths: string[] = [];
 		
-		// Strategy 1: From the package installation directory
-		// The file could be at: node_modules/@zenyr/bun-pty/dist/index.js
-		// We want to find: node_modules/@zenyr/bun-pty-{platform}-{arch}/
+		// Parse import.meta.url for node_modules
 		const parts = base.split("/");
 		for (let i = parts.length - 1; i >= 0; i--) {
 			if (parts[i] === "node_modules") {
-				// Found a node_modules directory, construct path from there
 				const nmPath = parts.slice(0, i + 1).join("/");
 				nodeModulesPaths.push(join(nmPath, "@zenyr", `bun-pty-${platform}-${arch}`));
 			}
 		}
 		
-		// Strategy 2: From current working directory
+		// Search from cwd upwards
 		nodeModulesPaths.push(join(process.cwd(), "node_modules", "@zenyr", `bun-pty-${platform}-${arch}`));
-		
-		// Strategy 3: Traverse up from cwd
 		let currentDir = process.cwd();
 		for (let i = 0; i < 10; i++) {
 			nodeModulesPaths.push(join(currentDir, "node_modules", "@zenyr", `bun-pty-${platform}-${arch}`));
 			const parentDir = join(currentDir, "..");
-			if (parentDir === currentDir) break; // Reached root
+			if (parentDir === currentDir) break;
 			currentDir = parentDir;
 		}
 
 		const filename = getLibraryFilename();
-		
 		for (const pkgPath of nodeModulesPaths) {
 			if (!existsSync(pkgPath)) continue;
-			
-			// Try direct library path first
 			const libPath = join(pkgPath, filename);
 			if (existsSync(libPath)) return libPath;
-			
-			// Try reading index.mjs for the path
-			const indexMjs = join(pkgPath, "index.mjs");
-			if (existsSync(indexMjs)) {
-				try {
-					const content = readFileSync(indexMjs, "utf-8");
-					// Match the filename in the export statement
-					const match = content.match(/['"]([^'"]+\.(?:dylib|so|dll))['"]/);
-					if (match) {
-						const extractedPath = join(pkgPath, match[1]);
-						if (existsSync(extractedPath)) return extractedPath;
-					}
-				} catch {
-					// Failed to parse, already tried direct path above
-				}
-			}
 		}
 	} catch {
-		// Platform package not found, fall back to bundled library
+		// Filesystem search failed
 	}
 
-	// Fallback: look for bundled library in development scenarios
-	// In development, check the rust-pty build output directory
+	// Strategy 3: Development fallback - look for rust-pty build output
 	const base = Bun.fileURLToPath(import.meta.url);
-	const here = base.replace(/\/(dist|src)\/.*$/, ""); // up to bun-pty/
+	const here = base.replace(/\/(dist|src)\/.*$/, "");
 	const filename = getLibraryFilename();
 	const fallbackPaths = [
-		join(here, "rust-pty", "target", "release", filename),  // development: project root
-		join(process.cwd(), "rust-pty", "target", "release", filename),  // alt: cwd
+		join(here, "rust-pty", "target", "release", filename),
+		join(process.cwd(), "rust-pty", "target", "release", filename),
 	];
 
 	for (const path of fallbackPaths) {
@@ -116,7 +100,7 @@ const resolveLibPath = (): string => {
 	);
 };
 
-const libPath = resolveLibPath();
+const libPath = await resolveLibPath();
 
 // biome-ignore lint/suspicious/noExplicitAny: <explanation>
 let lib: any;
