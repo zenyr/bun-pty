@@ -211,8 +211,8 @@ test("Terminal can run a bash script", async () => {
   expect(dataReceived).toContain("World");
 });
 
-test("Terminal can detect non-zero exit codes", async () => {
-  let exitEvent: IExitEvent | null = null;
+test("Terminal can detect non-zero exit codes - false command", async () => {
+  let exitEvent: IExitEvent | undefined;
   
   // Run a command that exits with code 1
   const terminal = new Terminal("false", []);
@@ -232,8 +232,45 @@ test("Terminal can detect non-zero exit codes", async () => {
     await new Promise(resolve => setTimeout(resolve, 100));
   }
   
-  expect(exitEvent).not.toBeNull();
+  expect(exitEvent).toBeDefined();
   if (exitEvent) {
-    expect(exitEvent.exitCode).not.toBe(0); // false exits with 1
+    console.log("[TEST] Exit code:", exitEvent.exitCode);
+    expect(exitEvent.exitCode).toBe(1); // false exits with 1
+  }
+});
+
+test("Terminal can detect non-zero exit codes - cat nonexistent file", async () => {
+  let exitEvent: IExitEvent | undefined;
+  let errorOutput = "";
+  
+  // Run cat on a nonexistent file
+  const terminal = new Terminal("cat", ["/tmp/nonexistentfile"]);
+  terminals.push(terminal);
+  
+  terminal.onData((data) => {
+    console.log("[TEST] Received data:", data);
+    errorOutput += data;
+  });
+  
+  terminal.onExit((event) => {
+    console.log("[TEST] Process exited with event:", event);
+    exitEvent = event;
+  });
+  
+  // Wait for exit event
+  const timeout = 2000; // 2 second timeout
+  const start = Date.now();
+  
+  while (!exitEvent && Date.now() - start < timeout) {
+    // Wait a bit
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  
+  expect(exitEvent).toBeDefined();
+  if (exitEvent) {
+    console.log("[TEST] Exit code:", exitEvent.exitCode);
+    console.log("[TEST] Error output:", errorOutput);
+    expect(exitEvent.exitCode).not.toBe(0); // cat exits with 1 when file not found
+    expect(errorOutput).toContain("No such file or directory");
   }
 });
