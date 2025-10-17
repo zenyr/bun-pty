@@ -1,6 +1,6 @@
 /**
  * TypeScript build script for bun-pty
- *
+ * 
  * This script handles both building the Rust library and TypeScript code.
  */
 
@@ -19,10 +19,10 @@ if (!existsSync(OUTPUT_DIR)) {
 
 // Build Rust library
 console.log("Building Rust library...");
-const rustBuild = spawnSync("cargo", ["build", "--release"], {
+const rustBuild = spawnSync("cargo", ["build", "--release"], { 
   cwd: RUST_DIR,
   stdio: "inherit",
-  shell: true,
+  shell: true
 });
 
 if (rustBuild.status !== 0) {
@@ -36,23 +36,21 @@ console.log("Rust library built successfully!");
 const platform = process.platform;
 const arch = process.arch;
 
-const sourceLib =
-  platform === "darwin"
-    ? "librust_pty.dylib"
-    : platform === "win32"
-    ? "rust_pty.dll"
-    : "librust_pty.so";
+const sourceLib = platform === "darwin" 
+  ? "librust_pty.dylib"
+  : platform === "win32"
+  ? "rust_pty.dll"
+  : "librust_pty.so";
 
-const targetLib =
-  platform === "darwin"
-    ? arch === "arm64"
-      ? "librust_pty_arm64.dylib"
-      : "librust_pty.dylib"
-    : platform === "win32"
-    ? "rust_pty.dll"
-    : arch === "arm64"
-    ? "librust_pty_arm64.so"
-    : "librust_pty.so";
+const targetLib = platform === "darwin"
+  ? arch === "arm64"
+    ? "librust_pty_arm64.dylib"
+    : "librust_pty.dylib"
+  : platform === "win32"
+  ? "rust_pty.dll"
+  : arch === "arm64"
+  ? "librust_pty_arm64.so"
+  : "librust_pty.so";
 
 const sourcePath = join(RUST_DIR, "target", "release", sourceLib);
 const targetPath = join(RUST_DIR, "target", "release", targetLib);
@@ -67,7 +65,3 @@ if (existsSync(sourcePath) && sourcePath !== targetPath) {
 }
 
 // Building TypeScript code is handled by the bun CLI (see package.json scripts)
-spawnSync("bun", ["x", "--bun", "tsc"], {
-  stdio: "inherit",
-  shell: true,
-});

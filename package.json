@@ -35,7 +35,9 @@
 		"performance"
 	],
 	"scripts": {
-		"postinstall": "bun build.ts",
+		"prepare": "bun run build",
+		"postinstall": "bun run build",
+		"prepack": "bun run build",
 		"build:rust": "cd rust-pty && cargo build --release",
 		"build:ts": "bun build ./src/index.ts --outdir ./dist --target bun --declaration --external bun:ffi && tsc --emitDeclarationOnly --declaration --outDir dist",
 		"build": "bun run build:rust && bun run build:ts",
