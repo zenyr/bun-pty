@@ -36,6 +36,7 @@
 	],
 	"scripts": {
 		"prepare": "bun run build",
+		"postinstall": "bun run build",
 		"prepack": "bun run build",
 		"build:rust": "cd rust-pty && cargo build --release",
 		"build:ts": "bun build ./src/index.ts --outdir ./dist --target bun --declaration --external bun:ffi && tsc --emitDeclarationOnly --declaration --outDir dist",
@@ -50,13 +51,16 @@
 		"bun": ">=1.0.0"
 	},
 	"files": [
+		"src/**/*",
+		"rust-pty/**/*",
+		"!rust-pty/target/**/*",
 		"dist/**/*",
+		"build.ts",
+		"build.sh",
 		"README.md",
 		"LICENSE",
 		"CHANGELOG.md",
-		"rust-pty/target/release/*.so",
-		"rust-pty/target/release/*.dylib",
-		"rust-pty/target/release/*.dll"
+		"tsconfig.json"
 	],
 	"devDependencies": {
 		"@types/bun": "^1.2.13",
