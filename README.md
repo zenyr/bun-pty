@@ -4,7 +4,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Bun Compatible](https://img.shields.io/badge/Bun-%E2%89%A51.0.0-black)](https://bun.sh)
 
-A cross-platform pseudo-terminal (PTY) implementation for Bun, powered by Rust's portable-pty library and Bun's FFI capabilities.
+A cross-platform pseudo-terminal (PTY) implementation for **Bun runtime**, powered by Rust's portable-pty library and Bun's FFI capabilities.
+
+> **⚠️ Bun Runtime Required:** This package uses `bun:ffi` and Bun-specific APIs. For Node.js, please use [node-pty](https://github.com/microsoft/node-pty) instead.
 
 > **Note:** This is a fork of [bun-pty](https://github.com/sursaone/bun-pty) (v0.3.2) with significant improvements and architectural changes.
 

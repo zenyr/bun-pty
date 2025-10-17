@@ -7,11 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.3.4] - 2025-10-17
+## [0.4.0] - 2025-10-17
 
 ### Changed
 - **BREAKING**: Restructured to use platform-specific optional dependencies (`@zenyr/bun-pty-{linux,darwin,win32}-{x64,arm64}`)
+- **BREAKING**: Clarified as Bun-only package (uses `bun:ffi` and Bun-specific APIs)
+- Platform packages (`@zenyr/bun-pty-*`) now provide dual ESM + CJS exports
+- Platform packages restructured with simpler `.mjs` and `.cjs` entry points
 - Reduced installation size from ~3-4MB to ~600KB per platform
+- Simplified library resolution logic by delegating filename logic to platform packages
 
 ### Added
 - ARM64 support for Linux and macOS
@@ -21,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Native libraries now properly included in npm packages
 - Improved cross-compilation support in CI/CD
+
+### Note
+- This package requires **Bun runtime** (uses `bun:ffi`)
+- For Node.js users, consider using [node-pty](https://github.com/microsoft/node-pty) instead
 
 ## [0.3.3] - 2025-10-17
 
