@@ -1,6 +1,6 @@
 {
 	"name": "@zenyr/bun-pty",
-	"version": "0.3.3",
+	"version": "0.3.4",
 	"description": "Cross-platform pseudoterminal (PTY) implementation for Bun with native performance (fork of bun-pty)",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -57,17 +57,18 @@
 		"bun": ">=1.0.0"
 	},
 	"files": [
-		"src/**/*",
-		"rust-pty/**/*",
-		"!rust-pty/target/**/*",
 		"dist/**/*",
-		"build.ts",
-		"build.sh",
 		"README.md",
 		"LICENSE",
-		"CHANGELOG.md",
-		"tsconfig.json"
+		"CHANGELOG.md"
 	],
+	"optionalDependencies": {
+		"@zenyr/bun-pty-linux-x64": "0.3.4",
+		"@zenyr/bun-pty-linux-arm64": "0.3.4",
+		"@zenyr/bun-pty-darwin-x64": "0.3.4",
+		"@zenyr/bun-pty-darwin-arm64": "0.3.4",
+		"@zenyr/bun-pty-win32-x64": "0.3.4"
+	},
 	"devDependencies": {
 		"@types/bun": "^1.2.13",
 		"@types/node": "^22.15.18",
