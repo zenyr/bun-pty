@@ -1,4 +1,4 @@
-// terminal.ts  —  JS/TS front-end (final fixed version)
+// terminal.ts  —  JS/TS front-end for Bun runtime
 
 import { dlopen, FFIType, ptr } from "bun:ffi";
 import { Buffer } from "node:buffer";
@@ -24,7 +24,8 @@ function resolveLibPath(): string {
 	// Try to load from platform-specific optional dependency package first
 	const platformPackageName = `@zenyr/bun-pty-${platform}-${arch}`;
 	try {
-		// Try to require the platform package which exports the library path
+		// The platform package exports the full library path including correct filename
+		// Bun supports require() natively in ESM
 		const platformPackagePath = require.resolve(platformPackageName);
 		const libPath = require(platformPackagePath);
 		if (existsSync(libPath)) return libPath;
@@ -32,23 +33,27 @@ function resolveLibPath(): string {
 		// Platform package not found, fall back to bundled library
 	}
 
-	// Fallback: look for bundled library (for development or self-hosted scenarios)
-	const filename =
-		platform === "darwin"
-			? arch === "arm64" ? "librust_pty_arm64.dylib" : "librust_pty.dylib"
-			: platform === "win32"
-			? "rust_pty.dll"
-			: arch === "arm64" ? "librust_pty_arm64.so" : "librust_pty.so";
-
-	// Start from the current module's location (inside node_modules/bun-pty/dist or src during development)
+	// Fallback: look for bundled library in development scenarios
+	// In development, check the rust-pty build output directory
 	const base = Bun.fileURLToPath(import.meta.url);
 	const here = base.replace(/\/(dist|src)\/.*$/, ""); // up to bun-pty/
 
+	// Build the library name based on platform/arch (same logic as platform packages)
+	const getLibraryFilename = (): string => {
+		if (platform === "darwin") {
+			return arch === "arm64" ? "librust_pty_arm64.dylib" : "librust_pty.dylib";
+		}
+		if (platform === "win32") {
+			return "rust_pty.dll";
+		}
+		// Linux
+		return arch === "arm64" ? "librust_pty_arm64.so" : "librust_pty.so";
+	};
+
+	const filename = getLibraryFilename();
 	const fallbackPaths = [
-		join(here, "rust-pty", "target", "release", filename),       // node_modules/bun-pty/rust-pty/target/release or dev
-		join(here, "..", "bun-pty", "rust-pty", "target", "release", filename), // monorepo setups
-		join(process.cwd(), "node_modules", "bun-pty", "rust-pty", "target", "release", filename),
-		join(process.cwd(), "rust-pty", "target", "release", filename), // development: run from project root
+		join(here, "rust-pty", "target", "release", filename),  // development: project root
+		join(process.cwd(), "rust-pty", "target", "release", filename),  // alt: cwd
 	];
 
 	for (const path of fallbackPaths) {
