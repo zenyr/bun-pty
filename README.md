@@ -6,7 +6,39 @@
 
 A cross-platform pseudo-terminal (PTY) implementation for Bun, powered by Rust's portable-pty library and Bun's FFI capabilities.
 
-> **Note:** This is a fork of [bun-pty](https://github.com/sursaone/bun-pty) with additional improvements and fixes.
+> **Note:** This is a fork of [bun-pty](https://github.com/sursaone/bun-pty) (v0.3.2) with significant improvements and architectural changes.
+
+## 🔀 Fork Improvements (v0.3.3+)
+
+This fork adds the following improvements over the original bun-pty:
+
+### Performance & Distribution
+- **Platform-specific packages**: Split native libraries into optional dependencies (~600KB vs ~3-4MB)
+- **ARM64 support**: Added native support for ARM64 on both Linux and macOS
+
+### Bug Fixes
+- **Exit code handling**: Fixed issue where child process exit codes were not properly captured
+- **FFI bindings**: Corrected `bun_pty_write` FFI bindings and removed unnecessary null terminators
+- **Argument quoting**: Fixed bash argument handling for commands with spaces and special characters
+
+### Developer Experience
+- **Enhanced error messages**: Better library resolution errors with platform detection
+- **Custom library path**: Support for `BUN_PTY_LIB` environment variable
+- **Comprehensive tests**: Added exit code verification and vi integration tests
+- **Security**: Pinned GitHub Actions versions and fixed workflow vulnerabilities
+
+### CI/CD & Publishing
+- **Cross-platform builds**: Automated builds for all platforms (Linux/macOS/Windows, x64/ARM64)
+- **Multi-package publishing**: Automated publishing of platform-specific packages to npm
+
+### 🔄 Upstream Contributions
+
+The following improvements have been submitted as pull requests to the upstream repository:
+
+- [#10 - Fix: Report actual process exit code instead of hardcoded 0](https://github.com/sursaone/bun-pty/pull/10) - Fixes exit code handling bug
+- [#11 - Fix bash -c argument handling and FFI bindings](https://github.com/sursaone/bun-pty/pull/11) - Fixes argument quoting and FFI binding issues
+
+These fixes are already included in this fork (v0.3.3+) and are pending review in the upstream repository.
 
 ## 🚀 Features
 
@@ -25,15 +57,25 @@ A cross-platform pseudo-terminal (PTY) implementation for Bun, powered by Rust's
 bun add @zenyr/bun-pty
 ```
 
+The package automatically installs the correct native library for your platform. Platform-specific packages are installed as optional dependencies:
+
+- `@zenyr/bun-pty-linux-x64` - Linux x86_64
+- `@zenyr/bun-pty-linux-arm64` - Linux ARM64
+- `@zenyr/bun-pty-darwin-x64` - macOS x86_64 (Intel)
+- `@zenyr/bun-pty-darwin-arm64` - macOS ARM64 (Apple Silicon)
+- `@zenyr/bun-pty-win32-x64` - Windows x86_64
+
+> **Note:** Only the platform-specific package matching your system will be downloaded, keeping installation size minimal (~600KB instead of ~3-4MB).
+
 ### From GitHub (for development or specific branches)
 
-If you want to install directly from a GitHub repository:
+Installing from GitHub requires building from source (Rust toolchain needed):
 
 ```bash
-bun add github:zenyr/bun-pty
+bun add github:zenyr/bun-pty --trust
 ```
 
-**Important:** Bun requires explicit permission to run install scripts for security reasons. Add the package to `trustedDependencies` in your `package.json`:
+**Important:** GitHub installations include source code and require the Rust toolchain (cargo) to build. Bun requires explicit permission to run build scripts. Use the `--trust` flag or add to `trustedDependencies`:
 
 ```json
 {
@@ -46,22 +88,12 @@ bun add github:zenyr/bun-pty
 }
 ```
 
-Then reinstall:
-
-```bash
-bun install
-```
-
-Alternatively, you can use the `--trust` flag during installation:
-
-```bash
-bun add github:zenyr/bun-pty --trust
-```
+> **Tip:** For production use, prefer the npm package which includes prebuilt binaries and doesn't require Rust.
 
 ## ⚙️ Requirements
 
 - **Bun** 1.0.0 or higher
-- **Rust toolchain** (cargo) is required when installing from GitHub, as the package needs to be built from source
+- **Rust toolchain** (cargo) is required only when installing from GitHub or building from source
 - **TypeScript** (included as devDependency)
 
 ## 📋 Platform Support
@@ -249,19 +281,49 @@ bun test
 
 ### Prebuilt Binaries
 
-The npm package includes prebuilt binaries for macOS, Linux, and Windows. If you encounter issues with the prebuilt binaries, you can build from source:
+The npm package uses platform-specific optional dependencies to provide prebuilt binaries. Each platform package contains only the native library for that specific OS and architecture.
+
+If you encounter issues with the prebuilt binaries:
+
+1. **Check if the platform package was installed:**
+   ```bash
+   ls node_modules/@zenyr/bun-pty-*/
+   ```
+
+2. **Force reinstall the platform package:**
+   ```bash
+   bun add @zenyr/bun-pty --force
+   ```
+
+3. **Build from source (development only):**
+   ```bash
+   cd node_modules/@zenyr/bun-pty
+   bun run build
+   ```
+
+### Custom Library Path
+
+You can specify a custom path to the native library using the `BUN_PTY_LIB` environment variable:
 
 ```bash
-# In your project directory
-bun add @zenyr/bun-pty
-cd node_modules/@zenyr/bun-pty
-bun run build
+export BUN_PTY_LIB=/path/to/librust_pty.dylib
+bun run your-script.ts
 ```
 
 ### Common Issues
 
-- **Error: Unable to load shared library**: Make sure you have the necessary system libraries installed.
-- **Process spawn fails**: Check if you have the required permissions and paths.
+- **Error: librust_pty shared library not found**
+  - Make sure the appropriate platform package is installed
+  - Check that your OS and architecture match one of the supported platforms
+  - Try reinstalling with `bun add @zenyr/bun-pty --force`
+
+- **Error: Unable to load shared library**
+  - Ensure you have the necessary system libraries installed
+  - On Linux, you may need `libc6` and related dependencies
+
+- **Process spawn fails**
+  - Check if you have the required permissions and paths
+  - Verify the executable exists and is in your PATH
 
 ## 📄 License
 
@@ -269,6 +331,7 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## 🙏 Credits
 
+- Forked from [bun-pty](https://github.com/sursaone/bun-pty) by [@sursaone](https://github.com/sursaone)
 - Built specifically for [Bun](https://bun.sh/)
 - Uses [portable-pty](https://github.com/wez/wezterm/tree/main/pty) from WezTerm for cross-platform PTY support
 - Inspired by [node-pty](https://github.com/microsoft/node-pty) for the API design
