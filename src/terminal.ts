@@ -20,73 +20,8 @@ const resolveLibPath = (): string => {
 
 	const platform = process.platform;
 	const arch = process.arch;
-
-	// Try to load from platform-specific optional dependency package first
-	const platformPackageName = `@zenyr/bun-pty-${platform}-${arch}`;
-	try {
-		// In Bun's ESM environment, we need to construct the path directly
-		// The platform package should be in node_modules
-		const base = Bun.fileURLToPath(import.meta.url);
-		const projectRoot = base.replace(/\/(dist|src)\/.*$/, "");
-		
-		// Try multiple node_modules locations
-		const nodeModulesPaths = [
-			join(projectRoot, "node_modules", platformPackageName),
-			join(process.cwd(), "node_modules", platformPackageName),
-		];
-
-		// Add parent directories for nested installations
-		let currentDir = projectRoot;
-		for (let i = 0; i < 5; i++) {
-			const parentDir = join(currentDir, "..");
-			nodeModulesPaths.push(join(parentDir, "node_modules", platformPackageName));
-			currentDir = parentDir;
-		}
-
-		for (const pkgPath of nodeModulesPaths) {
-			// Try to read the package's index.mjs to get the library path
-			const indexMjs = join(pkgPath, "index.mjs");
-			if (existsSync(indexMjs)) {
-				// Read and parse the simple export statement
-				// Expected format: export default join(__dirname, 'librust_pty_arm64.dylib');
-				try {
-					const content = readFileSync(indexMjs, "utf-8");
-					// Match the filename in the export statement
-					const match = content.match(/['"]([^'"]+\.(?:dylib|so|dll))['"]/);
-					if (match) {
-						const libPath = join(pkgPath, match[1]);
-						if (existsSync(libPath)) return libPath;
-					}
-				} catch {
-					// Failed to parse, try direct construction
-				}
-
-				// Fallback: construct expected library filename directly
-				const getLibraryFilename = (): string => {
-					if (platform === "darwin") {
-						return arch === "arm64" ? "librust_pty_arm64.dylib" : "librust_pty.dylib";
-					}
-					if (platform === "win32") {
-						return "rust_pty.dll";
-					}
-					// Linux
-					return arch === "arm64" ? "librust_pty_arm64.so" : "librust_pty.so";
-				};
-
-				const libPath = join(pkgPath, getLibraryFilename());
-				if (existsSync(libPath)) return libPath;
-			}
-		}
-	} catch {
-		// Platform package not found, fall back to bundled library
-	}
-
-	// Fallback: look for bundled library in development scenarios
-	// In development, check the rust-pty build output directory
-	const base = Bun.fileURLToPath(import.meta.url);
-	const here = base.replace(/\/(dist|src)\/.*$/, ""); // up to bun-pty/
-
-	// Build the library name based on platform/arch (same logic as platform packages)
+	
+	// Helper to get library filename
 	const getLibraryFilename = (): string => {
 		if (platform === "darwin") {
 			return arch === "arm64" ? "librust_pty_arm64.dylib" : "librust_pty.dylib";
@@ -98,6 +33,74 @@ const resolveLibPath = (): string => {
 		return arch === "arm64" ? "librust_pty_arm64.so" : "librust_pty.so";
 	};
 
+	// Try to load from platform-specific optional dependency package first
+	const platformPackageName = `@zenyr/bun-pty-${platform}-${arch}`;
+	
+	try {
+		// In Bun's ESM environment, we need to construct the path directly
+		// The platform package should be in node_modules
+		const base = Bun.fileURLToPath(import.meta.url);
+		
+		// Build search paths - start from current file and traverse up
+		const nodeModulesPaths: string[] = [];
+		
+		// Strategy 1: From the package installation directory
+		// The file could be at: node_modules/@zenyr/bun-pty/dist/index.js
+		// We want to find: node_modules/@zenyr/bun-pty-{platform}-{arch}/
+		const parts = base.split("/");
+		for (let i = parts.length - 1; i >= 0; i--) {
+			if (parts[i] === "node_modules") {
+				// Found a node_modules directory, construct path from there
+				const nmPath = parts.slice(0, i + 1).join("/");
+				nodeModulesPaths.push(join(nmPath, "@zenyr", `bun-pty-${platform}-${arch}`));
+			}
+		}
+		
+		// Strategy 2: From current working directory
+		nodeModulesPaths.push(join(process.cwd(), "node_modules", "@zenyr", `bun-pty-${platform}-${arch}`));
+		
+		// Strategy 3: Traverse up from cwd
+		let currentDir = process.cwd();
+		for (let i = 0; i < 10; i++) {
+			nodeModulesPaths.push(join(currentDir, "node_modules", "@zenyr", `bun-pty-${platform}-${arch}`));
+			const parentDir = join(currentDir, "..");
+			if (parentDir === currentDir) break; // Reached root
+			currentDir = parentDir;
+		}
+
+		const filename = getLibraryFilename();
+		
+		for (const pkgPath of nodeModulesPaths) {
+			if (!existsSync(pkgPath)) continue;
+			
+			// Try direct library path first
+			const libPath = join(pkgPath, filename);
+			if (existsSync(libPath)) return libPath;
+			
+			// Try reading index.mjs for the path
+			const indexMjs = join(pkgPath, "index.mjs");
+			if (existsSync(indexMjs)) {
+				try {
+					const content = readFileSync(indexMjs, "utf-8");
+					// Match the filename in the export statement
+					const match = content.match(/['"]([^'"]+\.(?:dylib|so|dll))['"]/);
+					if (match) {
+						const extractedPath = join(pkgPath, match[1]);
+						if (existsSync(extractedPath)) return extractedPath;
+					}
+				} catch {
+					// Failed to parse, already tried direct path above
+				}
+			}
+		}
+	} catch {
+		// Platform package not found, fall back to bundled library
+	}
+
+	// Fallback: look for bundled library in development scenarios
+	// In development, check the rust-pty build output directory
+	const base = Bun.fileURLToPath(import.meta.url);
+	const here = base.replace(/\/(dist|src)\/.*$/, ""); // up to bun-pty/
 	const filename = getLibraryFilename();
 	const fallbackPaths = [
 		join(here, "rust-pty", "target", "release", filename),  // development: project root
