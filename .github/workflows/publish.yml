@@ -40,14 +40,14 @@ jobs:
             out:    rust_pty.dll
 
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955  # v4
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1482605bfc5719782e1ae10e568334e1e752aa3a  # stable
+        uses: dtolnay/rust-toolchain@5d458579430fc14a04a08a1e7d3694f545e91ce6  # stable
         with:
           targets: ${{ matrix.target }}
 
-      - uses: Swatinem/rust-cache@23bce251a8cd2ffc3c1075eaa2367cf899916d84  # v2.7.3
+      - uses: Swatinem/rust-cache@54e2af0a8339c0435fa1de94002eab349a2f15ef  # v2.7.3
 
       - name: Install aarch64 linker
         if: matrix.target == 'aarch64-unknown-linux-gnu'
@@ -78,14 +78,14 @@ jobs:
           [[ ${#src[@]} -gt 0 ]] || { echo "❌ no lib"; exit 1; }
           cp "${src[0]}" "out/${{ matrix.out }}"
 
-      - uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3  # v4.3.1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: compiled-libs-${{ matrix.target }}-${{ github.run_id }}
           path: out/*
 
       - name: Upload to GitHub Release
         if: github.event_name == 'release'
-        uses: softprops/action-gh-release@9d7c94cfd0a1f3ed45544c887983e9fa900f0564  # v2.0.4
+        uses: softprops/action-gh-release@6da8fa9354ddfdc4aeace5fc48d7f679b5214090  # v2
         with:
           files: out/*
           fail_on_unmatched_files: true
@@ -95,9 +95,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955  # v4
 
-      - uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5  # v1.2.2
+      - uses: oven-sh/setup-bun@f4d14e03ff726c06358e5557344e1da148b56cf7  # v1
         with:
           bun-version: latest
 
@@ -105,7 +105,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Download all compiled libs
-        uses: actions/download-artifact@c850b930e6ba138125429b7e5c93fc707a7f8427  # v4.1.4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
           path: downloaded-libs
           pattern: compiled-libs-*
