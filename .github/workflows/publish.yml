@@ -110,13 +110,27 @@ jobs:
           path: downloaded-libs
           pattern: compiled-libs-*
 
-      - name: Move compiled libs into final release path
+      - name: Prepare platform-specific packages
         run: |
-          mkdir -p ${{ env.RELEASE_DIR }}
-          find downloaded-libs -type f \( -name '*.so' -o -name '*.dylib' -o -name '*.dll' \) -exec cp {} ${{ env.RELEASE_DIR }}/ \;
+          # Copy native libraries to platform-specific packages
+          cp downloaded-libs/compiled-libs-x86_64-unknown-linux-gnu-*/librust_pty.so npm/linux-x64/
+          cp downloaded-libs/compiled-libs-aarch64-unknown-linux-gnu-*/librust_pty_arm64.so npm/linux-arm64/
+          cp downloaded-libs/compiled-libs-x86_64-apple-darwin-*/librust_pty.dylib npm/darwin-x64/
+          cp downloaded-libs/compiled-libs-aarch64-apple-darwin-*/librust_pty_arm64.dylib npm/darwin-arm64/
+          cp downloaded-libs/compiled-libs-x86_64-pc-windows-gnu-*/rust_pty.dll npm/win32-x64/
 
-      - name: List bundled libs
-        run: ls -R ${{ env.RELEASE_DIR }}
+      - name: List platform packages
+        run: |
+          echo "=== Linux x64 ==="
+          ls -lh npm/linux-x64/
+          echo "=== Linux ARM64 ==="
+          ls -lh npm/linux-arm64/
+          echo "=== macOS x64 ==="
+          ls -lh npm/darwin-x64/
+          echo "=== macOS ARM64 ==="
+          ls -lh npm/darwin-arm64/
+          echo "=== Windows x64 ==="
+          ls -lh npm/win32-x64/
 
       - name: Build TypeScript
         run: bun run build:ts
@@ -131,6 +145,10 @@ jobs:
             exit 1
           fi
           npm version "$VERSION" --no-git-tag-version
+          # Update platform package versions too
+          for pkg in npm/*/package.json; do
+            node -e "const fs=require('fs'); const p=JSON.parse(fs.readFileSync('$pkg')); p.version='$VERSION'; fs.writeFileSync('$pkg', JSON.stringify(p,null,'\t')+'\n');"
+          done
           echo "✓ Publishing version: $VERSION"
 
       - name: Set up npm authentication
@@ -141,7 +159,20 @@ jobs:
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Publish to npm
+      - name: Publish platform packages to npm
+        run: |
+          for dir in npm/*/; do
+            echo "Publishing $(basename $dir)..."
+            cd "$dir"
+            # Copy .npmrc to each platform package directory
+            cp ../../.npmrc .
+            npm publish --access public
+            cd ../..
+          done
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish main package to npm
         run: npm publish --access public
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
