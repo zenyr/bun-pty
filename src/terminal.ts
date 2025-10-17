@@ -5,7 +5,7 @@ import { Buffer } from "node:buffer";
 import { EventEmitter } from "./interfaces";
 import type { IPty, IPtyForkOptions, IExitEvent } from "./interfaces";
 import { join } from "node:path";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 export const DEFAULT_COLS = 80;
 export const DEFAULT_ROWS = 24;
@@ -14,7 +14,7 @@ export const DEFAULT_NAME = "xterm";
 
 // terminal.ts  – loader fragment only
 
-function resolveLibPath(): string {
+const resolveLibPath = (): string => {
 	const env = process.env.BUN_PTY_LIB;
 	if (env && existsSync(env)) return env;
 
@@ -24,11 +24,59 @@ function resolveLibPath(): string {
 	// Try to load from platform-specific optional dependency package first
 	const platformPackageName = `@zenyr/bun-pty-${platform}-${arch}`;
 	try {
-		// The platform package exports the full library path including correct filename
-		// Bun supports require() natively in ESM
-		const platformPackagePath = require.resolve(platformPackageName);
-		const libPath = require(platformPackagePath);
-		if (existsSync(libPath)) return libPath;
+		// In Bun's ESM environment, we need to construct the path directly
+		// The platform package should be in node_modules
+		const base = Bun.fileURLToPath(import.meta.url);
+		const projectRoot = base.replace(/\/(dist|src)\/.*$/, "");
+		
+		// Try multiple node_modules locations
+		const nodeModulesPaths = [
+			join(projectRoot, "node_modules", platformPackageName),
+			join(process.cwd(), "node_modules", platformPackageName),
+		];
+
+		// Add parent directories for nested installations
+		let currentDir = projectRoot;
+		for (let i = 0; i < 5; i++) {
+			const parentDir = join(currentDir, "..");
+			nodeModulesPaths.push(join(parentDir, "node_modules", platformPackageName));
+			currentDir = parentDir;
+		}
+
+		for (const pkgPath of nodeModulesPaths) {
+			// Try to read the package's index.mjs to get the library path
+			const indexMjs = join(pkgPath, "index.mjs");
+			if (existsSync(indexMjs)) {
+				// Read and parse the simple export statement
+				// Expected format: export default join(__dirname, 'librust_pty_arm64.dylib');
+				try {
+					const content = readFileSync(indexMjs, "utf-8");
+					// Match the filename in the export statement
+					const match = content.match(/['"]([^'"]+\.(?:dylib|so|dll))['"]/);
+					if (match) {
+						const libPath = join(pkgPath, match[1]);
+						if (existsSync(libPath)) return libPath;
+					}
+				} catch {
+					// Failed to parse, try direct construction
+				}
+
+				// Fallback: construct expected library filename directly
+				const getLibraryFilename = (): string => {
+					if (platform === "darwin") {
+						return arch === "arm64" ? "librust_pty_arm64.dylib" : "librust_pty.dylib";
+					}
+					if (platform === "win32") {
+						return "rust_pty.dll";
+					}
+					// Linux
+					return arch === "arm64" ? "librust_pty_arm64.so" : "librust_pty.so";
+				};
+
+				const libPath = join(pkgPath, getLibraryFilename());
+				if (existsSync(libPath)) return libPath;
+			}
+		}
 	} catch {
 		// Platform package not found, fall back to bundled library
 	}
@@ -63,7 +111,7 @@ function resolveLibPath(): string {
 	throw new Error(
 		`librust_pty shared library not found.\nPlatform: ${platform}-${arch}\nTried:\n  - Optional package: ${platformPackageName}\n  - BUN_PTY_LIB=${env ?? "<unset>"}\n  - ${fallbackPaths.join("\n  - ")}\n\nInstall the platform-specific package or set BUN_PTY_LIB environment variable.`
 	);
-}
+};
 
 const libPath = resolveLibPath();
 

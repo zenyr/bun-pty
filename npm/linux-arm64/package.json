@@ -1,6 +1,6 @@
 {
 	"name": "@zenyr/bun-pty-linux-arm64",
-	"version": "0.4.1",
+	"version": "0.4.2",
 	"description": "Linux ARM64 native library for @zenyr/bun-pty",
 	"type": "module",
 	"main": "./index.cjs",
