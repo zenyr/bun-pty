@@ -1,10 +1,12 @@
-# bun-pty
+# @zenyr/bun-pty
 
-[![NPM Version](https://img.shields.io/npm/v/bun-pty.svg)](https://www.npmjs.com/package/bun-pty)
+[![NPM Version](https://img.shields.io/npm/v/@zenyr/bun-pty.svg)](https://www.npmjs.com/package/@zenyr/bun-pty)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Bun Compatible](https://img.shields.io/badge/Bun-%E2%89%A51.0.0-black)](https://bun.sh)
 
 A cross-platform pseudo-terminal (PTY) implementation for Bun, powered by Rust's portable-pty library and Bun's FFI capabilities.
+
+> **Note:** This is a fork of [bun-pty](https://github.com/sursaone/bun-pty) with additional improvements and fixes.
 
 ## 🚀 Features
 
@@ -20,15 +22,15 @@ A cross-platform pseudo-terminal (PTY) implementation for Bun, powered by Rust's
 ### From npm (recommended)
 
 ```bash
-bun add bun-pty
+bun add @zenyr/bun-pty
 ```
 
 ### From GitHub (for development or specific branches)
 
-If you want to install directly from a GitHub repository or a specific branch:
+If you want to install directly from a GitHub repository:
 
 ```bash
-bun add github:zenyr/bun-pty#merged
+bun add github:zenyr/bun-pty
 ```
 
 **Important:** Bun requires explicit permission to run install scripts for security reasons. Add the package to `trustedDependencies` in your `package.json`:
@@ -36,10 +38,10 @@ bun add github:zenyr/bun-pty#merged
 ```json
 {
   "dependencies": {
-    "bun-pty": "github:zenyr/bun-pty#merged"
+    "@zenyr/bun-pty": "github:zenyr/bun-pty"
   },
   "trustedDependencies": [
-    "bun-pty"
+    "@zenyr/bun-pty"
   ]
 }
 ```
@@ -53,7 +55,7 @@ bun install
 Alternatively, you can use the `--trust` flag during installation:
 
 ```bash
-bun add github:zenyr/bun-pty#merged --trust
+bun add github:zenyr/bun-pty --trust
 ```
 
 ## ⚙️ Requirements
@@ -75,7 +77,7 @@ bun add github:zenyr/bun-pty#merged --trust
 ### Basic Example
 
 ```typescript
-import { spawn } from "bun-pty";
+import { spawn } from "@zenyr/bun-pty";
 
 // Create a new terminal
 const terminal = spawn("bash", [], {
@@ -111,8 +113,8 @@ setTimeout(() => {
 The library includes complete TypeScript definitions. Here's how to use it with full type safety:
 
 ```typescript
-import { spawn } from "bun-pty";
-import type { IPty, IExitEvent, IPtyForkOptions } from "bun-pty";
+import { spawn } from "@zenyr/bun-pty";
+import type { IPty, IExitEvent, IPtyForkOptions } from "@zenyr/bun-pty";
 
 // Create typed options
 const options: IPtyForkOptions = {
@@ -142,7 +144,7 @@ exitHandler.dispose();
 ### Interactive Shell Example
 
 ```typescript
-import { spawn } from "bun-pty";
+import { spawn } from "@zenyr/bun-pty";
 import { createInterface } from "node:readline";
 
 // Create a PTY running bash
@@ -230,7 +232,7 @@ If you want to build the package from source:
 
 ```bash
 # Clone the repository
-git clone https://github.com/sursaone/bun-pty.git
+git clone https://github.com/zenyr/bun-pty.git
 cd bun-pty
 
 # Install dependencies
@@ -251,8 +253,8 @@ The npm package includes prebuilt binaries for macOS, Linux, and Windows. If you
 
 ```bash
 # In your project directory
-bun add bun-pty
-cd node_modules/bun-pty
+bun add @zenyr/bun-pty
+cd node_modules/@zenyr/bun-pty
 bun run build
 ```
 

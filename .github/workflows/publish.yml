@@ -3,6 +3,11 @@ name: Publish Package
 on:
   release: { types: [created, edited] }
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (optional, will use package.json version if not specified)'
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -115,10 +120,16 @@ jobs:
       - name: Build TypeScript
         run: bun run build:ts
 
+      - name: Update version if specified
+        if: github.event.inputs.version
+        run: |
+          npm version ${{ github.event.inputs.version }} --no-git-tag-version
+          echo "Publishing version: ${{ github.event.inputs.version }}"
+
       - name: Set up npm authentication
         run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > .npmrc
 
       - name: Publish to npm
-        run: npm publish
+        run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

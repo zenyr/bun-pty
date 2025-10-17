@@ -1,22 +1,28 @@
 {
-	"name": "bun-pty",
+	"name": "@zenyr/bun-pty",
 	"version": "0.3.2",
-	"description": "Cross-platform pseudoterminal (PTY) implementation for Bun with native performance",
+	"description": "Cross-platform pseudoterminal (PTY) implementation for Bun with native performance (fork of bun-pty)",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"type": "module",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/sursaone/bun-pty.git"
+		"url": "git+https://github.com/zenyr/bun-pty.git"
 	},
-	"homepage": "https://github.com/sursaone/bun-pty#readme",
+	"homepage": "https://github.com/zenyr/bun-pty#readme",
 	"bugs": {
-		"url": "https://github.com/sursaone/bun-pty/issues"
+		"url": "https://github.com/zenyr/bun-pty/issues"
 	},
 	"author": {
-		"name": "Dilip Thapa",
-		"url": "https://github.com/sursaone"
+		"name": "Jinhyeok Lee",
+		"url": "https://github.com/zenyr"
 	},
+	"contributors": [
+		{
+			"name": "Dilip Thapa",
+			"url": "https://github.com/sursaone"
+		}
+	],
 	"license": "MIT",
 	"keywords": [
 		"bun",
