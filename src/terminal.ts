@@ -19,13 +19,26 @@ function resolveLibPath(): string {
 	if (env && existsSync(env)) return env;
 
 	const platform = process.platform;
+	const arch = process.arch;
 
+	// Try to load from platform-specific optional dependency package first
+	const platformPackageName = `@zenyr/bun-pty-${platform}-${arch}`;
+	try {
+		// Try to require the platform package which exports the library path
+		const platformPackagePath = require.resolve(platformPackageName);
+		const libPath = require(platformPackagePath);
+		if (existsSync(libPath)) return libPath;
+	} catch {
+		// Platform package not found, fall back to bundled library
+	}
+
+	// Fallback: look for bundled library (for development or self-hosted scenarios)
 	const filename =
 		platform === "darwin"
-			? "librust_pty.dylib"
+			? arch === "arm64" ? "librust_pty_arm64.dylib" : "librust_pty.dylib"
 			: platform === "win32"
 			? "rust_pty.dll"
-			: "librust_pty.so";
+			: arch === "arm64" ? "librust_pty_arm64.so" : "librust_pty.so";
 
 	// Start from the current module's location (inside node_modules/bun-pty/dist or src during development)
 	const base = Bun.fileURLToPath(import.meta.url);
@@ -43,7 +56,7 @@ function resolveLibPath(): string {
 	}
 
 	throw new Error(
-		`librust_pty shared library not found.\nChecked:\n  - BUN_PTY_LIB=${env ?? "<unset>"}\n  - ${fallbackPaths.join("\n  - ")}\n\nSet BUN_PTY_LIB or ensure one of these paths contains the file.`
+		`librust_pty shared library not found.\nPlatform: ${platform}-${arch}\nTried:\n  - Optional package: ${platformPackageName}\n  - BUN_PTY_LIB=${env ?? "<unset>"}\n  - ${fallbackPaths.join("\n  - ")}\n\nInstall the platform-specific package or set BUN_PTY_LIB environment variable.`
 	);
 }
 
