@@ -1,8 +1,16 @@
 {
 	"name": "@zenyr/bun-pty-darwin-arm64",
-	"version": "0.3.4",
+	"version": "0.4.0",
 	"description": "macOS ARM64 native library for @zenyr/bun-pty",
-	"main": "index.js",
+	"type": "module",
+	"main": "./index.cjs",
+	"module": "./index.mjs",
+	"exports": {
+		".": {
+			"import": "./index.mjs",
+			"require": "./index.cjs"
+		}
+	},
 	"os": ["darwin"],
 	"cpu": ["arm64"],
 	"repository": {
@@ -25,8 +33,9 @@
 		"native"
 	],
 	"files": [
-		"librust_pty_arm64.dylib",
-		"index.js"
+		"index.mjs",
+		"index.cjs",
+		"librust_pty_arm64.dylib"
 	],
 	"publishConfig": {
 		"access": "public"
