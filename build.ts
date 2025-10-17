@@ -5,8 +5,8 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync } from "node:fs";
-import { dirname } from "node:path";
+import { existsSync, mkdirSync, copyFileSync } from "node:fs";
+import { join } from "node:path";
 
 // Configuration
 const RUST_DIR = "./rust-pty";
@@ -31,5 +31,37 @@ if (rustBuild.status !== 0) {
 }
 
 console.log("Rust library built successfully!");
+
+// Copy and rename the library file based on architecture
+const platform = process.platform;
+const arch = process.arch;
+
+const sourceLib = platform === "darwin" 
+  ? "librust_pty.dylib"
+  : platform === "win32"
+  ? "rust_pty.dll"
+  : "librust_pty.so";
+
+const targetLib = platform === "darwin"
+  ? arch === "arm64"
+    ? "librust_pty_arm64.dylib"
+    : "librust_pty.dylib"
+  : platform === "win32"
+  ? "rust_pty.dll"
+  : arch === "arm64"
+  ? "librust_pty_arm64.so"
+  : "librust_pty.so";
+
+const sourcePath = join(RUST_DIR, "target", "release", sourceLib);
+const targetPath = join(RUST_DIR, "target", "release", targetLib);
+
+if (existsSync(sourcePath) && sourcePath !== targetPath) {
+  try {
+    copyFileSync(sourcePath, targetPath);
+    console.log(`Copied ${sourceLib} to ${targetLib}`);
+  } catch (error) {
+    console.error(`Failed to copy library file: ${error}`);
+  }
+}
 
 // Building TypeScript code is handled by the bun CLI (see package.json scripts) 
