@@ -327,6 +327,56 @@ bun run your-script.ts
   - Check if you have the required permissions and paths
   - Verify the executable exists and is in your PATH
 
+### Windows SSH Interactive PTY Limitation (#1)
+
+**Issue**: Interactive SSH sessions to Windows OpenSSH servers do not receive command output through PTY.
+
+**Symptoms**:
+- Command input is properly echoed (visible on screen)
+- Command output never reaches `onData()` callback  
+- PTY control codes work (Ctrl+C, Ctrl+D, etc.)
+- Non-interactive SSH (`ssh host command`) works normally
+
+**Verified Behavior**:
+
+| Scenario | Result |
+|----------|--------|
+| Local bash/zsh PTY | ✅ Works perfectly |
+| SSH to macOS/Linux | ✅ Works perfectly |
+| SSH to Windows (non-interactive) | ✅ Works (`ssh host whoami`) |
+| SSH to Windows (interactive) | ❌ No output (Issue #1) |
+
+**Root Cause**: Windows OpenSSH's conhost.exe does not properly route stdout back through the PTY master when running an interactive shell. This is not a bun-pty implementation issue but a Windows OpenSSH architecture limitation.
+
+**Why It Happens**:
+1. When SSH detects stdin as non-TTY (piped from our PTY slave), it marks the remote session as non-interactive
+2. conhost.exe then handles stdout differently for interactive vs non-interactive sessions
+3. For interactive sessions, stdout is not connected back through the PTY channel
+
+**Workarounds**:
+
+1. **Use non-interactive SSH** (Recommended):
+```typescript
+// Works - output is received
+const proc = Bun.spawn(['ssh', 'windows-host', 'whoami'], {
+  stdout: 'pipe'
+});
+```
+
+2. **Use PowerShell Remoting**:
+```typescript
+// Consider using PS Remoting for Windows-specific scenarios
+const proc = Bun.spawn(['pwsh', '-Command', 'Invoke-Command -ComputerName host -ScriptBlock {...}']);
+```
+
+3. **Target Unix/Linux hosts** (Best option if possible):
+```typescript
+// Works perfectly - full interactive PTY support
+const pty = spawn('ssh', ['linux-host'], { name: 'xterm-256color' });
+```
+
+**Note**: This limitation only affects Windows OpenSSH targets. Local PTY and Unix/Linux SSH sessions work as expected.
+
 ## 📄 License
 
 This project is licensed under the [MIT License](LICENSE).
