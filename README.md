@@ -327,6 +327,35 @@ bun run your-script.ts
   - Check if you have the required permissions and paths
   - Verify the executable exists and is in your PATH
 
+### Windows SSH Interactive PTY Limitation (#1)
+
+**Issue**: Interactive SSH sessions to Windows hosts do not receive command output through PTY.
+
+**Symptoms**:
+- Command input is properly echoed (visible on screen)
+- Command output never reaches `onData()` callback
+- PTY control codes work (Ctrl+C, Ctrl+D, etc.)
+- Non-interactive SSH (`ssh host command`) works normally
+
+**Root Cause**: Windows OpenSSH's conhost.exe has a limitation where stdout is not properly routed back through the PTY master when the remote shell is interactive. This is not a bun-pty bug but a Windows OpenSSH implementation detail.
+
+**Evidence**:
+```bash
+# Works - non-interactive command
+ssh windows-host 'echo test'  # ✅ Output received
+
+# Fails - interactive shell
+ssh windows-host              # ❌ No output after commands
+> echo test
+```
+
+**Workarounds**:
+- Use non-interactive SSH for command execution
+- For Windows hosts, consider PowerShell Remoting or WinRM
+- SSH to Unix/Linux hosts works perfectly with bun-pty
+
+Note: This limitation only affects Windows SSH targets. Local PTY and Unix/Linux SSH sessions work as expected.
+
 ## 📄 License
 
 This project is licensed under the [MIT License](LICENSE).
