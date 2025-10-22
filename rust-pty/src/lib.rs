@@ -178,23 +178,10 @@ impl Pty {
             let tx = tx_r.clone();
             thread::spawn(move || {
                 let mut buf = vec![0; 8192];
-                let mut consecutive_zero_reads = 0;
                 loop {
                     match rdr.read(&mut buf) {
-                        Ok(0) => {
-                            // Don't break immediately on 0 bytes - could be temporary
-                            // Wait a bit and retry (important for network-based PTY like SSH)
-                            consecutive_zero_reads += 1;
-                            if consecutive_zero_reads > 50 {
-                                // After 50 consecutive 0-byte reads, assume EOF
-                                break;
-                            }
-                            thread::sleep(Duration::from_millis(10));
-                        }
-                        Ok(n) => {
-                            consecutive_zero_reads = 0;
-                            let _ = tx.send(Msg::Data(buf[..n].to_vec()));
-                        }
+                        Ok(0) => break,
+                        Ok(n) => { let _ = tx.send(Msg::Data(buf[..n].to_vec())); }
                         Err(_) => break,
                     }
                 }
